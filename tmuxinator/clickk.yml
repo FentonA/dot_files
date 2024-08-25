@@ -1,7 +1,7 @@
-# /Users/alffenton/.config/tmuxinator/rails.yml
+# /Users/alffenton/.config/tmuxinator/clickk.yml
 
-name: career-plug 
-root: ~/ats
+name: clickk
+root: ~/Clickk
 
 # Optional tmux socket
 # socket_name: foo
@@ -30,7 +30,7 @@ root: ~/ats
 # pre_window: rbenv shell 2.0.0-p247
 
 # Pass command line options to tmux. Useful for specifying a different tmux.conf.
-tmux_options: -f ~/.config/tmux/.tmux.conf
+tmux_options: -f ~/.config/tmux/tmux.mac.conf
 
 # Change the command to call tmux. This can be used by derivatives/wrappers like byobu.
 # tmux_command: byobu
@@ -45,13 +45,43 @@ tmux_options: -f ~/.config/tmux/.tmux.conf
 # attach: false
 
 windows:
-  - editor:
-      layout: main-horizontal
+  - frontend:
+      root: ~/Clickk/frontend/
+      layout: main-vertical
       # Synchronize all panes of this window, can be enabled before or after the pane commands run.
       # 'before' represents legacy functionality and will be deprecated in a future release, in favour of 'after'
       # synchronize: after
       panes:
         - nvim
-        - guard
-  - server: bundle exec rails s
-  - logs: tail -f log/development.log
+        - npm run test 
+  - ui:
+      root: ~/Clickk/frontend/
+      panes:
+        - npm run dev 
+  - ui-build:
+      root: ~/Clickk/frontend/  
+      panes: 
+        - npm run build
+
+  - user-service: 
+      root: ~/Clickk/backend/user_service/
+      layout: main-vertical
+      panes: 
+        - nvim
+        - cargo watch -x test 
+  - user-server: 
+      root: ~/Clickk/backend/user_service/
+      panes: 
+        - cargo watch -x run  
+
+  - content-offer-service: 
+      root: ~/Clickk/backend/content_offer_service/
+      layout: main-vertical
+      panes:
+        - nvim
+        - cargo watch -x test
+  - content-offer-server: 
+      root: ~/Clickk/backend/content_offer_service/ 
+      panes: 
+        - cargo watch -x run 
+
