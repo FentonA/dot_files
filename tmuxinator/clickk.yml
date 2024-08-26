@@ -29,8 +29,8 @@ root: ~/Clickk
 # Runs in each window and pane before window/pane specific commands. Useful for setting up interpreter versions.
 # pre_window: rbenv shell 2.0.0-p247
 
-# Pass command line options to tmux. Useful for specifying a different tmux.conf.
-tmux_options: -f ~/.config/tmux/tmux.mac.conf
+
+tmux_options: -f ~/.config/tmux/.tmux.conf
 
 # Change the command to call tmux. This can be used by derivatives/wrappers like byobu.
 # tmux_command: byobu
@@ -84,4 +84,8 @@ windows:
       root: ~/Clickk/backend/content_offer_service/ 
       panes: 
         - cargo watch -x run 
+  - common:
+      root: ~/Clickk/backend/migrations/ 
+      panes: 
+        - nvim 
 
