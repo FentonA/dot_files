@@ -84,8 +84,22 @@ windows:
       root: ~/Clickk/backend/content_offer_service/ 
       panes: 
         - cargo watch -x run 
-  - common:
-      root: ~/Clickk/backend/migrations/ 
+  - engagement_service: 
+      root: ~/Clickk/backend/engagement_service/
+      layout: main-vertical
       panes: 
-        - nvim 
+        - nvim
+        - cargo watch -x test 
+  - engagement_server:
+      root: ~/Clickk/backend/engagmement_service/
+      panes: 
+        - cargo watch -x run
+  - common:
+      root: ~/Clickk/backend/common/ 
+      panes: 
+        - nvim
+        - psql -h localhost -U user -d clickkdb
+  - note: 
+      panes:
+        - nvim
 
