@@ -639,7 +639,7 @@ require('lazy').setup({
       --  You can press `g?` for help in this menu.
       require 'plugins.obsidian'
       require('mason').setup()
-
+      require('lspconfig').gleam.setup {}
       -- You can add other tools here that you want Mason to install
       -- for you, so that they are available from within Neovim.
       local ensure_installed = vim.tbl_keys(servers or {})
@@ -659,6 +659,18 @@ require('lazy').setup({
             require('lspconfig')[server_name].setup(server)
           end,
         },
+      }
+
+      require('lspconfig').tsserver.setup {
+        on_attach = function(client, bufnr)
+          local buf_set_keymap = vim.api.nvim_buf_set_keymap
+          local opts = { noremap = true, silent = true }
+
+          buf_set_keymap(bufnr, 'n', 'gd', '<Cmd>lua vim.lsp.buf.definition()<CR>', opts)
+          buf_set_keymap(bufnr, 'n', 'gr', '<Cmd>lua vim.lsp.buf.references()<CR>', opts)
+          buf_set_keymap(bufnr, 'n', 'K', '<Cmd>lua vim.lsp.buf.hover()<CR>', opts)
+        end,
+        filetypes = { 'javascript', 'typescript', 'typescriptreact', 'javascriptreact', 'json' },
       }
     end,
   },

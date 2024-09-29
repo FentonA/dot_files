@@ -11,7 +11,7 @@ return {
   {
     'epwalsh/obsidian.nvim',
     version = '*', -- recommended, use latest release instead of latest commit
-    lazy = true,
+    lazy = false,
     ft = 'markdown',
     -- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
     -- event = {
@@ -92,6 +92,14 @@ return {
     'tpope/vim-projectionist',
     ft = { 'ruby', 'eruby', 'haml' },
   },
-
+  'neovim/nvim-lspconfig', -- Native LSP support
+  'hrsh7th/nvim-cmp', -- Completion framework
+  'hrsh7th/cmp-nvim-lsp', -- LSP completion source for nvim-cmp
+  'hrsh7th/cmp-buffer', -- Buffer completion source for nvim-cmp
+  'nvim-treesitter/nvim-treesitter', -- Better syntax highlighting and folding
+  'jose-elias-alvarez/null-ls.nvim', -- Linting and formatting
+  'MunifTanjim/eslint.nvim', -- ESLint support
+  'folke/tokyonight.nvim', -- Optional: theme for better visuals
+  'glepnir/lspsaga.nvim', -- LSP UI improvements (optional)
   -- Add other plugins below...
 }
