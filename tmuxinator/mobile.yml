@@ -1,7 +1,7 @@
 # /Users/alffenton/.config/tmuxinator/rails.yml
 
 name: mobile 
-root: ~/ats_mobile
+root: ~/ats/ats-mobile
 
 # Optional tmux socket
 # socket_name: foo
