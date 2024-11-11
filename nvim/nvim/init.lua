@@ -189,7 +189,12 @@ vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left wind
 vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
-
+vim.keymap.set('n', 'gd', function()
+  local ok = pcall(require('telescope.builtin').lsp_definitions)
+  if not ok then
+    require('telescope.builtin').find_files()
+  end
+end, { desc = '[G]oto [D]efinition with fallback' })
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
@@ -592,6 +597,16 @@ require('lazy').setup({
       --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
+
+      require('lspconfig').solargraph.setup {
+        settings = {
+          solargraph = {
+            diagnostics = true,
+          },
+        },
+        filetypes = { 'ruby', 'erb', 'eruby' }, -- Ensure erb and eruby are included here
+      }
+
       local servers = {
         -- clangd = {},
         -- gopls = {},

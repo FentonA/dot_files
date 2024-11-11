@@ -218,7 +218,7 @@ vim.opt.rtp:prepend(lazypath)
 
 -- [[ Configure and install plugins ]]
 --
---  To check the current status of your plugins, run
+--  To check the current status of your plugins, runinit
 --    :Lazy
 --
 --  You can press `?` in this menu for help. Use `:q` to close the window
@@ -969,6 +969,18 @@ require('lazy').setup({
     },
   },
 })
+
+-- Create the GithubNotifications command
+vim.api.nvim_create_user_command('GithubNotifications', function()
+  -- Run the script and capture the output
+  local handle = io.popen 'bash ~/.config/gh/fetch_github_notifications.sh'
+  local result = handle:read '*a'
+  handle:close()
+  -- Parse each line of result (assuming each notification is on a new line in `result`)
+  for line in result:gmatch '[^\r\n]+' do
+    vim.notify(line, 'info', { title = 'GitHub Notification' })
+  end
+end, { nargs = 0 })
 
 -- Create a custom autocmd group for quickfix
 vim.api.nvim_create_augroup('QuickfixColors', { clear = true })

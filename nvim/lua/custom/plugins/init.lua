@@ -7,7 +7,17 @@ return {
   -- General Plugins
   'tpope/vim-dispatch',
   'tpope/vim-fugitive',
-
+  {
+    'rcarriga/nvim-notify',
+    config = function()
+      require('notify').setup {
+        -- Optional: Set up additional options here, like timeout, stages, etc.
+        stages = 'fade_in_slide_out',
+        timeout = 5000,
+      }
+      vim.notify = require 'notify' -- Set nvim-notify as the default notification handler
+    end,
+  },
   {
     'epwalsh/obsidian.nvim',
     version = '*', -- recommended, use latest release instead of latest commit
