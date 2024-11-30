@@ -68,7 +68,7 @@ windows:
       layout: main-vertical
       panes: 
         - nvim
-        - cargo watch -x test 
+        - cargo watch -x "test -- --nocapture"
   - user-server: 
       root: ~/Clickk/backend/user_service/
       panes: 
@@ -79,7 +79,7 @@ windows:
       layout: main-vertical
       panes:
         - nvim
-        - cargo watch -x test
+        - cargo watch -x "test -- --nocapture"
   - content-offer-server: 
       root: ~/Clickk/backend/content_offer_service/ 
       panes: 
@@ -89,7 +89,7 @@ windows:
       layout: main-vertical
       panes: 
         - nvim
-        - cargo watch -x test 
+        - cargo watch -x "test -- --nocapture"
   - engagement_server:
       root: ~/Clickk/backend/engagmement_service/
       panes: 
