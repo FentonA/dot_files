@@ -1,41 +1,68 @@
--- ~/.config/nvim/lua/kickstart/plugins/cyberdream.lua
+-- Define reusable color variables
+local colors = {
+  background = 'NONE', -- Transparent background
+  foreground = '#E0E0E0', -- Main text color
+  comment = '#A1A1A1', -- Soft grey for comments
+  keyword = '#FFD700', -- Bright golden for keywords
+  function_name = '#9A9A9A', -- Light grey for functions
+  string = '#A1D6E6', -- Cyan for strings
+  variable_name = '#A1E6B1', -- Light green for variable names
+  identifier = '#D1A1D6', -- Magenta for identifiers
+  operator = '#9B7FD1', -- Purple for operators
+  type = '#8F8F8F', -- Grey for types
+  diff_add = '#A1D6A4', -- Green for added lines
+  diff_change = '#FFD700', -- Yellow for changed lines
+  diff_delete = '#D1A1D6', -- Magenta for deleted lines
+  diff_text = '#A1D6E6', -- Cyan for changed text
+}
+
 require('cyberdream').setup {
-  transparent = true, -- Transparent background for the clean look
-  italic_comments = true, -- Italics on comments for a soft feel
-  hide_fillchars = true, -- Remove unnecessary characters like borders
-  borderless_telescope = false, -- Disable borderless for Telescope to add borders
-  terminal_colors = true, -- Terminal colors that blend in
-  cache = false, -- No cache for immediate feedback on changes
+  transparent = true,
+  italic_comments = true,
+  hide_fillchars = true,
+  borderless_telescope = false,
+  terminal_colors = true,
+  cache = false,
 
   theme = {
-    variant = 'dark', -- Automatically switch to light/dark mode based on system
-    saturation = 0.8, -- Slightly higher saturation for a more vibrant feel
+    variant = 'dark',
+    saturation = 0.8,
     highlights = {
-      Normal = { fg = '#E0E0E0', bg = 'NONE' }, -- Lighter grey text for better visibility
-      Comment = { fg = '#A1A1A1', bg = 'NONE', italic = true }, -- Soft grey comments
-      Keyword = { fg = '#FFD700', bg = 'NONE', bold = true }, -- Bold golden keywords for contrast
-      Function = { fg = '#9A9A9A', bg = 'NONE', italic = true }, -- Light function names
-      String = { fg = '#A1D6E6', bg = 'NONE', bold = true }, -- Bold cyan for strings to pop
-      Identifier = { fg = '#D1A1D6', bg = 'NONE', bold = true }, -- Bold magenta for identifiers
-      Operator = { fg = '#9B7FD1', bg = 'NONE', bold = true }, -- Bold purple operators for emphasis
-      Type = { fg = '#8F8F8F', bg = 'NONE', bold = true }, -- Type declarations in bold to stand out
+      Normal = { fg = colors.foreground, bg = colors.background },
+      Comment = { fg = colors.comment, bg = colors.background, italic = true },
+      Keyword = { fg = colors.keyword, bg = colors.background, bold = true }, -- Keywords color
+      Function = { fg = colors.function_name, bg = colors.background, italic = true }, -- Function names color
+      String = { fg = colors.string, bg = colors.background, bold = true },
+      Identifier = { fg = colors.identifier, bg = colors.background, bold = true },
+      Variable = { fg = colors.variable_name, bg = colors.background, bold = true }, -- Variable names color
+      Operator = { fg = colors.operator, bg = colors.background, bold = true },
+      Type = { fg = colors.type, bg = colors.background, bold = true },
+      Directory = { fg = colors.operator, bg = colors.background, bold = true },
+      DiffAdd = { fg = colors.diff_add, bg = 'NONE', bold = true },
+      DiffChange = { fg = colors.diff_change, bg = 'NONE', bold = true },
+      DiffDelete = { fg = colors.diff_delete, bg = 'NONE', bold = true },
+      DiffText = { fg = colors.diff_text, bg = 'NONE', bold = true },
     },
-
-    -- Custom color overrides for a relaxed lo-fi theme
     colors = {
-      bg = 'NONE', -- Transparent background for seamless look
-      green = '#A1D6A4', -- Soft green for calmness
-      magenta = '#D1A1D6', -- Light purple-magenta for accent
-      cyan = '#A1D6E6', -- Cyan accents for futuristic look
-      purple = '#9B7FD1', -- Muted purple for subtle elegance
-      yellow = '#FFD700', -- Bright yellow to highlight important text
+      bg = colors.background,
+      green = colors.diff_add,
+      magenta = colors.identifier,
+      cyan = colors.string,
+      purple = colors.operator,
+      yellow = colors.keyword,
     },
   },
-
-  -- Extensions to enable for a smooth experience
   extensions = {
-    telescope = true, -- Telescope for fuzzy searching (with border)
-    notify = true, -- Notifications that match the theme
-    mini = true, -- Mini plugin for added utilities
+    telescope = true,
+    notify = true,
+    mini = true,
   },
 }
+
+-- Additional custom highlights for keywords, function names, and variables
+vim.cmd [[
+  highlight Keyword guifg=#FFD700 guibg=NONE gui=bold
+  highlight Function guifg=#9A9A9A guibg=NONE gui=italic
+  highlight Identifier guifg=#D1A1D6 guibg=NONE gui=bold
+  highlight Variable guifg=#A1E6B1 guibg=NONE gui=bold
+]]
