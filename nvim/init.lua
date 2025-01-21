@@ -87,8 +87,8 @@ P.S. You can delete this when you're done too. It's your config now! :)
 -- Set <space> as the leader key
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
-vim.g.mapleader = ' '
-vim.g.maplocalleader = ' '
+-- vim.g.mapleader = ' '
+-- vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = false
@@ -249,6 +249,9 @@ require('lazy').setup('kickstart.plugins.lazy', {
   },
 })
 
+require 'kickstart.plugins.options'
+require 'keymaps'
+
 -- Create the GithubNotifications command
 vim.api.nvim_create_user_command('GithubNotifications', function()
   -- Run the script and capture the output
@@ -278,6 +281,11 @@ vim.api.nvim_create_autocmd('FileType', {
     vim.cmd 'highlight link SuccessMsg Identifier'
   end,
 })
+
+function OpenMarkdownPreview(url)
+  vim.cmd('silent !firefox --new-window ' .. url)
+end
+vim.g.mkdp_browserfunc = 'OpenMarkdownPreview'
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
