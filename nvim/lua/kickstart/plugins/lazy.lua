@@ -386,16 +386,19 @@ return {
       -- change the command in the config to whatever the name of that colorscheme is.
       --
       -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-      'scottmckendry/cyberdream.nvim', -- Replace with the correct repository
+      'neanias/everforest-nvim',
+      version = false,
+      lazy = false,
+      priority = 1000, -- make sure to load this before all the other start plugins
+      -- Optional; default configuration will be used if setup isn't called.
       config = function()
-        -- Ensure this matches the path to your 'cyberdream' configuration
-        require 'kickstart.plugins.cyberdream' -- Reference the setup file
+        require 'kickstart.plugins.everforest' -- Reference the setup file
       end,
       init = function()
         -- Load the colorscheme here.
         -- Like many other themes, this one has different styles.
-        -- In this case, 'cyberdream' should be used as the name.
-        vim.cmd 'colorscheme cyberdream'
+        -- In this case, 'everforest' should be used as the name.
+        vim.cmd 'colorscheme everforest'
 
         -- You can configure highlights by doing something like:
         vim.cmd 'hi Comment gui=none' -- Example: Remove italics from comments (optional)
@@ -508,31 +511,31 @@ return {
         vim.fn['mkdp#util#install']()
       end,
     },
+
     -- LSP
     {
       'neovim/nvim-lspconfig',
-      cmd = {'LspInfo', 'LspInstall', 'LspStart'},
-      event = {'BufReadPre', 'BufNewFile'},
+      cmd = { 'LspInfo', 'LspInstall', 'LspStart' },
+      event = { 'BufReadPre', 'BufNewFile' },
       dependencies = {
-        {'hrsh7th/cmp-nvim-lsp'},
-        {'williamboman/mason-lspconfig.nvim'},
+        { 'hrsh7th/cmp-nvim-lsp' },
+        { 'williamboman/mason-lspconfig.nvim' },
       },
+
       config = function()
         -- This is where all the LSP shenanigans will live
-        local lsp_zero = require('lsp-zero')
+        local lsp_zero = require 'lsp-zero'
         lsp_zero.extend_lspconfig()
-
         --- if you want to know more about lsp-zero and mason.nvim
         --- read this: https://github.com/VonHeikemen/lsp-zero.nvim/blob/v3.x/doc/md/guides/integrate-with-mason-nvim.md
         lsp_zero.on_attach(function(client, bufnr)
           -- see :help lsp-zero-keybindings
           -- to learn the available actions
-          lsp_zero.default_keymaps({buffer = bufnr})
+          lsp_zero.default_keymaps { buffer = bufnr }
         end)
-
-        require('mason-lspconfig').setup({
+        require('mason-lspconfig').setup {
           ensure_installed = {
-            'pyright',  -- python
+            'pyright', -- python
             'tsserver', -- js, ts
           },
           handlers = {
@@ -542,21 +545,20 @@ return {
               local lua_opts = lsp_zero.nvim_lua_ls()
               require('lspconfig').lua_ls.setup(lua_opts)
             end,
-          }
-        })
-
+          },
+        }
         -- Python environment
-        local util = require("lspconfig/util")
+        local util = require 'lspconfig/util'
         local path = util.path
         require('lspconfig').pyright.setup {
           on_attach = on_attach,
           capabilities = capabilities,
           before_init = function(_, config)
-            default_venv_path = path.join(vim.env.HOME, "virtualenvs", "nvim-venv", "bin", "python")
+            default_venv_path = path.join(vim.env.HOME, 'virtualenvs', 'nvim-venv', 'bin', 'python')
             config.settings.python.pythonPath = default_venv_path
           end,
         }
-      end
-    }
+      end,
+    },
   },
 }

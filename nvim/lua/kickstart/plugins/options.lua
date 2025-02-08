@@ -1,4 +1,4 @@
-vim.cmd 'colorscheme cyberdream'
+vim.cmd 'colorscheme everforest'
 
 vim.opt.termguicolors = true
 require('bufferline').setup {}
