@@ -7,8 +7,10 @@ window-decoration = true
 # Comments start with a `#` and are only valid on their own line.
 # Blank lines are ignored!
 
+keybind = ctrl+k=toggle_quick_terminal
 keybind = ctrl+z=close_surface
-keybind = ctrl+d=new_split:right
+keybind = ctrl+t=new_split:right
 
 # Empty values reset the configuration to the default value
 font-family =
+
