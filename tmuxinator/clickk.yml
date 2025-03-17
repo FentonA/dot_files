@@ -53,7 +53,7 @@ windows:
       # synchronize: after
       panes:
         - nvim
-        - npm run test 
+        - npm run watch-build & npm run test 
   - ui:
       root: ~/Clickk/frontend/
       panes:
@@ -91,7 +91,7 @@ windows:
         - nvim
         - cargo watch -x "test -- --nocapture --test-threads=1"
   - engagement_server:
-      root: ~/Clickk/backend/engagmement_service/
+      root: ~/Clickk/backend/engagement_service/
       panes: 
         - cargo watch -x run
   - common:
