@@ -54,5 +54,5 @@ windows:
         - nvim
         - guard
   - server: bundle exec rails s
-  - logs: tail -f log/development.log
+  - prod_console: bin/ssh/connect_to production worker && bin/ssh/connect_to production web
   - ui-build: yarn watch:dev
