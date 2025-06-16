@@ -512,6 +512,13 @@ return {
       end,
     },
 
+    {
+      'williamboman/mason.nvim',
+      cmd = 'Mason',
+      build = ':MasonUpdate',
+      opts = {},
+    },
+
     -- LSP
     {
       'neovim/nvim-lspconfig',
