@@ -95,11 +95,8 @@ windows:
       panes: 
         - cargo watch -x run
   - common:
-      root: ~/Clickk/backend/common/ 
+      root: ~/Clickk/backend/common/
+      layout: main-vertical
       panes: 
         - nvim
         - psql -h localhost -U user -d clickkdb
-  - note: 
-      panes:
-        - nvim
-
