@@ -54,19 +54,10 @@ windows:
       panes:
         - nvim
         - npm run watch-build & npm run test 
-  - ui:
-      root: ~/Clickk/frontend/
-      panes:
-        - npm run dev 
-  - ui-build:
-      root: ~/Clickk/frontend/  
-      panes: 
-        - npm run build
-
   - user-service: 
       root: ~/Clickk/backend/user_service/
       layout: main-vertical
-      panes: 
+      panes:
         - nvim
         - cargo watch -x "test -- --nocapture --test-threads=1"
   - content-offer-service: 
@@ -87,8 +78,8 @@ windows:
       panes: 
         - nvim
         - cargo watch build 
-  - docker: 
+  - docker:
       root: ~/Clickk/
       layout: main-vertical
       panes:
-        - docker compose up --build --profile observability extended 
+        - docker-compose --profile observability extended up --build
