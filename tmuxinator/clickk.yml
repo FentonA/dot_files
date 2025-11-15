@@ -69,34 +69,26 @@ windows:
       panes: 
         - nvim
         - cargo watch -x "test -- --nocapture --test-threads=1"
-  - user-server: 
-      root: ~/Clickk/backend/user_service/
-      panes: 
-        - cargo watch -x run  
-
   - content-offer-service: 
       root: ~/Clickk/backend/content_offer_service/
       layout: main-vertical
       panes:
         - nvim
         - cargo watch -x "test -- --nocapture --test-threads=1"
-  - content-offer-server: 
-      root: ~/Clickk/backend/content_offer_service/ 
-      panes: 
-        - cargo watch -x run 
   - engagement_service: 
       root: ~/Clickk/backend/engagement_service/
       layout: main-vertical
       panes: 
         - nvim
         - cargo watch -x "test -- --nocapture --test-threads=1"
-  - engagement_server:
-      root: ~/Clickk/backend/engagement_service/
-      panes: 
-        - cargo watch -x run
   - common:
       root: ~/Clickk/backend/common/
       layout: main-vertical
       panes: 
         - nvim
-        - psql -h localhost -U user -d clickkdb
+        - cargo watch build 
+  - docker: 
+      root: ~/Clickk/
+      layout: main-vertical
+      panes:
+        - docker compose up --build --profile observability extended 

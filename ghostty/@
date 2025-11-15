@@ -1,0 +1,14 @@
+# The syntax is "key = value". The whitespace around the
+# equals doesn't matter.
+theme = Everforest Dark - Hard 
+# background = 282c52
+# foreground = ffffff
+window-decoration = true
+# Comments start with a `#` and are only valid on their own line.
+# Blank lines are ignored!
+
+keybind = ctrl+z=close_surface
+keybind = ctrl+d=new_split:right
+keybind = ctrl+o=toggle_quick_terminal
+# Empty values reset the configuration to the default value
+font-family =
