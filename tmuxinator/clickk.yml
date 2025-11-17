@@ -72,6 +72,12 @@ windows:
       panes: 
         - nvim
         - cargo watch -x "test -- --nocapture --test-threads=1"
+  - kinesis_lambda: 
+      root: ~/Clickk/backend/kinesis_lambda/
+      layout: main-vertical
+      panes: 
+        - nvim
+        - cargo watch build
   - common:
       root: ~/Clickk/backend/common/
       layout: main-vertical
