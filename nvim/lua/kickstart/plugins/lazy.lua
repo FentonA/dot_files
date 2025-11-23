@@ -491,8 +491,8 @@ return {
     require 'kickstart.plugins.lint',
     require 'kickstart.plugins.autopairs',
     require 'kickstart.plugins.neo-tree',
-    require 'kickstart.plugins.gitsigns', 
-    require 'kickstart.plugins.avante', 
+    require 'kickstart.plugins.gitsigns',
+    -- require 'kickstart.plugins.avante',
     -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
     --    This is the easiest way to modularize your config.
     --
@@ -544,6 +544,8 @@ return {
           ensure_installed = {
             'pyright', -- python
             'tsserver', -- js, ts
+            'nvim-lua/plenary.nvim',
+            'ThePrimeagen/harpoon',
           },
           handlers = {
             lsp_zero.default_setup,
@@ -564,6 +566,101 @@ return {
             default_venv_path = path.join(vim.env.HOME, 'virtualenvs', 'nvim-venv', 'bin', 'python')
             config.settings.python.pythonPath = default_venv_path
           end,
+        }
+      end,
+    },
+    {
+      'mrcjkb/rustaceanvim',
+      version = '^5',
+      lazy = false,
+      ft = 'rust',
+      config = function()
+        vim.g.rustaceanvim = {
+          server = {
+            on_attach = function(client, bufnr)
+              local opts = { buffer = bufnr, noremap = true, silent = true }
+              vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
+              vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
+              vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
+              vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, opts)
+              vim.keymap.set('n', ']d', vim.diagnostic.goto_next, opts)
+              vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, opts)
+            end,
+            settings = {
+              ['rust-analyzer'] = {
+                -- ✅ Enable Clippy
+                checkOnSave = {
+                  command = 'clippy',
+                  extraArgs = { '--all-targets' },
+                },
+                cargo = {
+                  allFeatures = true,
+                },
+                procMacro = {
+                  enable = true,
+                },
+                inlayHints = {
+                  enable = true,
+                },
+                diagnostics = {
+                  enable = true,
+                  experimental = {
+                    enable = true,
+                  },
+                },
+              },
+            },
+          },
+        }
+      end,
+    },
+    {
+      'rust-lang/rust.vim',
+      ft = 'rust',
+      init = function()
+        vim.g.rustfmt_autosave = 1
+      end,
+    },
+
+    {
+      'mfussenegger/nvim-dap',
+      config = function()
+        local dap, dapui = require 'dap', require 'dapui'
+        dap.listeners.before.attach.dapui_config = function()
+          dapui.open()
+        end
+        dap.listeners.before.launch.dapui_config = function()
+          dapui.open()
+        end
+        dap.listeners.before.event_terminated.dapui_config = function()
+          dapui.close()
+        end
+        dap.listeners.before.event_exited.dapui_config = function()
+          dapui.close()
+        end
+      end,
+    },
+
+    {
+      'rcarriga/nvim-dap-ui',
+      dependencies = { 'mfussenegger/nvim-dap', 'nvim-neotest/nvim-nio' },
+      config = function()
+        require('dapui').setup()
+      end,
+    },
+    {
+      'saecki/crates.nvim',
+      ft = { 'toml' },
+      config = function()
+        require('crates').setup {
+          completion = {
+            cmp = {
+              enabled = true,
+            },
+          },
+        }
+        require('cmp').setup.buffer {
+          sources = { { name = 'crates' } },
         }
       end,
     },

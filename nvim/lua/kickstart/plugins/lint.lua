@@ -5,21 +5,12 @@ return {
     config = function()
       local lint = require 'lint'
 
-      -- Define Clippy as a custom linter
-      lint.linters.clippy = {
-        cmd = 'cargo',
-        args = { 'clippy', '--message-format=json' },
-        stdin = false,
-        append_fname = false,
-      }
-
       -- Define linters for specific filetypes
       lint.linters_by_ft = {
         markdown = { 'markdownlint' },
         lua = { 'luacheck' },
         python = { 'flake8' },
         ruby = { 'rubocop' },
-        rust = { 'clippy' },
         typescript = { 'eslint' },
         javascript = { 'eslint' },
       }
