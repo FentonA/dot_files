@@ -7,3 +7,11 @@ vim.api.nvim_create_autocmd("FileType", {
     vim.opt_local.includeexpr = "substitute(v:fname, '\\v(.*/)?(.+)', '\\1_\\2', '')"
   end,
 })
+
+-- Rubocop autofix on save
+vim.api.nvim_create_autocmd("BufWritePre", {
+  pattern = "*.rb",
+  callback = function()
+    vim.lsp.buf.format({ name = "rubocop", async = false })
+  end,
+})
