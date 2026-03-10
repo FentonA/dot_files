@@ -51,7 +51,7 @@ windows:
       # 'before' represents legacy functionality and will be deprecated in a future release, in favour of 'after'
       # synchronize: after
       panes:
-        - nvim
+        - nvim .
         - guard
   - server: bundle exec rails s
   - prod_console: bin/ssh/connect_to production worker && bin/ssh/connect_to production web
