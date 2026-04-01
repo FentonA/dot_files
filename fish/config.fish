@@ -6,3 +6,8 @@ if test -f /Users/alffenton/miniconda3/bin/conda
 end
 # <<< conda initialize <<<
 
+set -x PATH ~/.rbenv/bin $PATH
+rbenv init - fish | source
+source ~/.asdf/asdf.fish
+set -x XKB_DEFAULT_OPTIONS ctrl:swapcaps
+export PATH="$HOME/.local/bin:$PATH"
