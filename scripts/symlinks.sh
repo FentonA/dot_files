@@ -5,28 +5,27 @@ echo "===> Symlinking configs from $DOTFILES_DIR..."
 
 # fish
 mkdir -p ~/.config/fish
-ln -sf "$DOTFILES_DIR/config/fish/config.fish" ~/.config/fish/config.fish
+ln -sf "$DOTFILES_DIR/fish/config.fish" ~/.config/fish/config.fish
 
 # tmux
-ln -sf "$DOTFILES_DIR/config/tmux/.tmux.conf" ~/.tmux.conf
+ln -sf "$DOTFILES_DIR/tmux/.tmux.conf" ~/.tmux.conf
 mkdir -p ~/.config/tmux
-ln -sf "$DOTFILES_DIR/config/tmux/.tmux.conf" ~/.config/tmux/.tmux.conf
+ln -sf "$DOTFILES_DIR/tmux/.tmux.conf" ~/.config/tmux/.tmux.conf
 
 # nvim
-mkdir -p ~/.config
-ln -sf "$DOTFILES_DIR/config/nvim" ~/.config/nvim
+ln -sf "$DOTFILES_DIR/nvim" ~/.config/nvim
 
 # ghostty
 mkdir -p ~/.config/ghostty
-ln -sf "$DOTFILES_DIR/config/ghostty/config" ~/.config/ghostty/config
+ln -sf "$DOTFILES_DIR/ghostty/config" ~/.config/ghostty/config
 
 # tmuxinator
 rm -rf ~/.config/tmuxinator
-ln -sf "$DOTFILES_DIR/config/tmuxinator" ~/.config/tmuxinator
+ln -sf "$DOTFILES_DIR/tmuxinator" ~/.config/tmuxinator
 
 # dunst
 mkdir -p ~/.config/dunst
-ln -sf "$DOTFILES_DIR/config/dunst/dunstrc" ~/.config/dunst/dunstrc
+ln -sf "$DOTFILES_DIR/dunst/dunstrc" ~/.config/dunst/dunstrc
 
 # sway
 mkdir -p ~/.config/sway

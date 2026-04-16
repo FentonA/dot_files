@@ -1,16 +1,19 @@
 [global]
+    enable_recursive_icon_lookup = false
+    icon_position = off
+    notification_limit = 0
     monitor = 0
     follow = mouse
-    width = 350
-    height = 200
-    origin = top-right
-    offset = 16x50
+    width = 450
+    height = 300
+    origin = top-center
+    offset = 0x50
     gap_size = 6
     padding = 12
     horizontal_padding = 14
     frame_width = 2
     separator_height = 2
-    font = JetBrainsMono Nerd Font 10
+    font = JetBrainsMono Nerd Font 15
     markup = full
     format = "<b>%s</b>\n%b"
     alignment = left
@@ -34,6 +37,7 @@
     foreground = "#e5e0d8"
     frame_color = "#c45c26"
     timeout = 8
+    script = "/home/pibaao/dot_files/scripts/notify-sound.sh"
 
 [urgency_critical]
     background = "#c45c26"
@@ -48,8 +52,8 @@
 
 [discord]
     appname = discord
-    timeout = 6
-    urgency = low
+    timeout = 10
+    urgency = normal
 
 [fullscreen_delay_everything]
     fullscreen = delay

@@ -7,7 +7,7 @@ window-decoration = true
 # Comments start with a `#` and are only valid on their own line.
 # Blank lines are ignored!
 
-keybind = ctrl+k=toggle_quick_terminal
+keybind = ctrl+i=toggle_quick_terminal
 keybind = ctrl+z=close_surface
 keybind = ctrl+t=new_split:right
 keybind = ctrl+c=copy_to_clipboard
