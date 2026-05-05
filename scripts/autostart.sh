@@ -137,9 +137,3 @@ gnome) setup_gnome ;;
 esac
 
 echo "===> Autostart configuration complete"
-
-# Poll GitHub notifications every 2 minutes
-while true; do
-  ~/dot_files/scripts/gh-notify.sh
-  sleep 120
-done &

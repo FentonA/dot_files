@@ -5,6 +5,14 @@
 
 set -euo pipefail
 
+# When run from cron, DBUS_SESSION_BUS_ADDRESS / XDG_RUNTIME_DIR aren't set,
+# so notify-send fails with "Cannot autolaunch D-Bus without X11 $DISPLAY".
+# Point at the running user session's bus. Don't override if already set
+# (interactive shells have richer values we want to keep).
+: "${XDG_RUNTIME_DIR:=/run/user/$(id -u)}"
+: "${DBUS_SESSION_BUS_ADDRESS:=unix:path=$XDG_RUNTIME_DIR/bus}"
+export XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS
+
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/gh-notify"
 SEEN_FILE="$STATE_DIR/seen.txt"
 mkdir -p "$STATE_DIR"
