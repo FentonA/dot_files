@@ -2,6 +2,7 @@
 name: clickk
 root: ~/Clickk
 tmux_options: -f ~/.config/tmux/.tmux.conf
+pre_window: tmux set-window-option -g main-pane-width 70%
 windows:
   - frontend:
       root: ~/Clickk/frontend/
@@ -9,28 +10,40 @@ windows:
         - nvim .
   - user-service:
       root: ~/Clickk/backend/user_service/
+      layout: main-vertical
       panes:
         - nvim .
+        - while ! docker compose exec user-service true 2>/dev/null; do sleep 3; done && docker compose exec user-service cargo watch -x test
   - content-offer-service:
       root: ~/Clickk/backend/content_offer_service/
+      layout: main-vertical
       panes:
         - nvim .
+        - while ! docker compose exec content-offer-service true 2>/dev/null; do sleep 3; done && docker compose exec content-offer-service cargo watch -x test
   - engagement_service:
       root: ~/Clickk/backend/engagement_service/
+      layout: main-vertical
       panes:
         - nvim .
+        - while ! docker compose exec engagement-service true 2>/dev/null; do sleep 3; done && docker compose exec engagement-service cargo watch -x test
   - osint_service:
       root: ~/Clickk/backend/osint_service/
+      layout: main-vertical
       panes:
         - nvim .
+        - while ! docker compose exec osint-service true 2>/dev/null; do sleep 3; done && docker compose exec osint-service cargo watch -x test
   - kinesis_lambda:
       root: ~/Clickk/backend/kinesis_lambda/
+      layout: main-vertical
       panes:
         - nvim .
+        - while ! docker compose exec kinesis-consumer true 2>/dev/null; do sleep 3; done && docker compose exec kinesis-consumer cargo watch -x test
   - common:
       root: ~/Clickk/backend/common/
+      layout: main-vertical
       panes:
         - nvim .
+        - while ! docker compose exec user-service true 2>/dev/null; do sleep 3; done && docker compose exec user-service cargo watch -x 'test -p common'
   - iac:
       root: ~/Clickk/
       panes:
@@ -39,4 +52,4 @@ windows:
       root: ~/Clickk/
       panes:
         - nvim docker-compose.yaml
-        - open -a Docker && docker compose --profile full --profile extended up --build
+        -  docker compose --profile full --profile extended up --build

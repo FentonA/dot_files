@@ -13,6 +13,7 @@ return {
         { "<leader>x", group = "diagnostics" },
         { "<leader>r", group = "rust" },
         { "<leader>t", group = "test" },
+        { "<leader>o", group = "obsidian" },
       },
     },
   },

@@ -1,9 +1,20 @@
+# =============================================================================
+# Dunst configuration
+# Charcoal + burnt sienna palette (#0f0f0f / #1a1a1a / #c45c26 / #e5e0d8)
+# =============================================================================
+
 [global]
-    enable_recursive_icon_lookup = false
-    icon_position = off
-    notification_limit = 0
+    # ----- Icons -----
+    enable_recursive_icon_lookup = true
+    icon_position = left
+    min_icon_size = 32
+    max_icon_size = 48
+    icon_path = /usr/share/icons/Adwaita/48x48/status/:/usr/share/icons/hicolor/scalable/apps/:/usr/share/icons/hicolor/48x48/apps/
+
+    # ----- Display / geometry -----
     monitor = 0
     follow = mouse
+    notification_limit = 0
     width = 450
     height = 300
     origin = top-center
@@ -13,18 +24,32 @@
     horizontal_padding = 14
     frame_width = 2
     separator_height = 2
+    corner_radius = 8
+
+    # ----- Typography -----
     font = JetBrainsMono Nerd Font 15
     markup = full
-    format = "<b>%s</b>\n%b"
+    format = "<b>%a</b>\n<b>%s</b>\n%b"
     alignment = left
+
+    # ----- Behavior -----
     show_age_threshold = 60
     stack_duplicates = true
     dmenu = /usr/bin/rofi -dmenu -p dunst
     browser = /usr/bin/xdg-open
-    corner_radius = 8
-    mouse_left_click = close_current
-    mouse_middle_click = do_action, close_current
+
+    # ----- Mouse -----
+    # Left-click invokes the notification's default action (opens source app)
+    # Middle dismisses the current notification
+    # Right dismisses all
+    mouse_left_click = open_url, close_current
+    mouse_middle_click = close_current
     mouse_right_click = close_all
+
+
+# =============================================================================
+# Urgency levels
+# =============================================================================
 
 [urgency_low]
     background = "#1a1a1a"
@@ -45,15 +70,53 @@
     frame_color = "#ff6b35"
     timeout = 0
 
+
+# =============================================================================
+# Per-app rules
+# Each app gets its brand color as the frame so source is visually obvious
+# =============================================================================
+
+# ----- Communication -----
+
 [slack]
     appname = Slack
-    timeout = 10
     urgency = normal
+    timeout = 10
+    frame_color = "#4A154B"
 
 [discord]
     appname = discord
-    timeout = 10
     urgency = normal
+    timeout = 10
+    frame_color = "#5865F2"
+
+[discord-capitalized]
+    appname = Discord
+    urgency = normal
+    timeout = 10
+    frame_color = "#5865F2"
+
+[thunderbird]
+    appname = Thunderbird
+    frame_color = "#1373D9"
+
+[ticktick]
+    appname = TickTick
+    frame_color = "#4772FA"
+
+[linear]
+    appname = Linear
+    frame_color = "#5E6AD2"
+
+[github]
+    appname = GitHub
+    urgency = normal
+    timeout = 12
+    frame_color = "#6e7681"
+# =============================================================================
+# Window state rules
+# =============================================================================
 
 [fullscreen_delay_everything]
+    # Hold all notifications when any window is fullscreen (focus protection)
     fullscreen = delay
