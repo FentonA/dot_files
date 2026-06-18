@@ -1,0 +1,42 @@
+#!/bin/bash
+# sway-next-session - launcher for the source-built Sway 1.11 stack.
+#
+# This wrapper is what the "Sway 1.11 (per-window screenshare)" GDM session
+# runs. It scopes the new stack (Sway 1.11 + wlroots 0.19 + xdg-desktop-portal-wlr
+# 0.8.x, all under /opt/sway-next) to THIS session only, so the apt-installed
+# Sway 1.9 session stays completely untouched as a rollback.
+#
+# Installed to /opt/sway-next/bin/sway-next-session by scripts/sway-next-build.sh.
+set -eu
+
+PREFIX=/opt/sway-next
+LIBDIR="$PREFIX/lib/x86_64-linux-gnu"
+
+# Put the new binaries and libraries first, but ONLY inside this session's
+# process tree. The old "Sway" session (Exec=sway) never sees these.
+export PATH="$PREFIX/bin:$PATH"
+export LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Prepend the new prefix so xdg-desktop-portal and dbus discover the 0.8.x
+# wlr backend (its .portal / .service live under $PREFIX/share) instead of the
+# system 0.7.1 one. Falls back to the standard dirs if XDG_DATA_DIRS is unset.
+export XDG_DATA_DIRS="$PREFIX/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+
+# Mirror the System76 NVIDIA wrapper (/usr/local/bin/sway-nvidia) so this
+# hybrid-GPU laptop starts the same way the working session does.
+export WLR_NO_HARDWARE_CURSORS=1
+export LIBGL_ALWAYS_SOFTWARE=0
+
+# Make sure the dbus/systemd activation environment that xdg-desktop-portal is
+# started from carries the new XDG_DATA_DIRS, otherwise the activated portal
+# would still resolve the system 0.7.1 backend.
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+  dbus-update-activation-environment --systemd XDG_DATA_DIRS PATH WLR_NO_HARDWARE_CURSORS 2>/dev/null || true
+fi
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl --user import-environment XDG_DATA_DIRS PATH 2>/dev/null || true
+fi
+
+# --unsupported-gpu is required because the proprietary NVIDIA driver is present
+# (same flag the working sway-nvidia wrapper passes).
+exec "$PREFIX/bin/sway" --unsupported-gpu "$@"
