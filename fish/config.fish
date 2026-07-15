@@ -22,3 +22,4 @@ if test -x $HOME/.local/chrome-for-testing/chrome-linux64/chrome
 end
 
 alias anki="flatpak run --env=QT_QPA_PLATFORM=wayland net.ankiweb.Anki"
+source ~/.config/fish/careerplug.fish

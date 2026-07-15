@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Sway 1.11 (per-window screenshare)
+Comment=Source-built Sway 1.11 + wlroots 0.19 + xdg-desktop-portal-wlr 0.8 for per-window screencast
+Exec=/opt/sway-next/bin/sway-next-session
+Type=Application
+DesktopNames=sway

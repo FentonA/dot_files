@@ -93,6 +93,12 @@ bindsym XF86AudioLowerVolume exec pactl set-sink-volume @DEFAULT_SINK@ -5%
 bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle
 bindsym XF86AudioMicMute exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
 
+# Brightness controls
+bindsym $mod+F8 exec /usr/bin/brightnessctl --device='amdgpu_bl1' set 10%-
+bindsym $mod+F9 exec /usr/bin/brightnessctl --device='amdgpu_bl1' set +10%
+bindsym $mod+Shift+F8 exec /usr/bin/brightnessctl --device='system76::kbd_backlight' set 25-
+bindsym $mod+Shift+F9 exec /usr/bin/brightnessctl --device='system76::kbd_backlight' set +25
+
 ### Sway mode (CapsLock/Ctrl + S, then single key)
 mode "sway" {
     # Workspaces
@@ -191,6 +197,8 @@ exec bluetoothctl
 exec ticktick
 exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway
 exec /usr/libexec/xdg-desktop-portal-wlr
+exec wl-clip-persist --clipboard regular
+exec systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
 
 ### Display configuration
 # Zen Browser PiP - float, sticky, small size
@@ -201,8 +209,7 @@ for_window [app_id="zen" title="Picture-in-Picture"] {
     resize set 400 225
     move position 1500 800
 }
-bindsym XF86MonBrightnessUp exec brightnessctl set +10%
-bindsym XF86MonBrightnessDown exec brightnessctl set 10%-
+
 
 # Fallback for other PiP titles
 for_window [title="Picture-in-Picture"] floating enable, sticky enable, border none
