@@ -36,13 +36,13 @@ windows:
       root: ~/Clickk/backend/aeo_service/
       layout: main-vertical
       panes: 
-        - nvim:
+        - nvim .
         - docker compose exec aeo-service true 2>/dev/null; do sleep 3; done && docker compose exec aeo-service cargo watch -x test
   - link_service:
       root: ~/Clickk/backend/link_service/ 
       layout: main-vertical
       panes:
-        - nvim
+        - nvim .
         - docker compose exec link-service true 2>/dev/null; do sleep 3; done && docker compose exec link-service cargo watch -x test
   - kinesis_lambda:
       root: ~/Clickk/backend/kinesis_lambda/
