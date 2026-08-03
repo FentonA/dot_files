@@ -1,67 +1,101 @@
-# /Users/alffenton/.config/tmuxinator/clickk.yml
+# ~/.config/tmuxinator/clickk.yml
+#
+# Organized by bounded context rather than one window per crate.
+#
+# Why: backend/ is a SINGLE cargo workspace, so one nvim per crate meant one
+# rust-analyzer per crate and broken cross-crate goto-definition (jumping from
+# user_service into common left nvim's root). Grouping related crates into one
+# nvim fixes both.
+#
+# Why all test panes exec into user-service: every backend container mounts
+# ./backend and shares the `target-cache` volume, so any crate's tests can run
+# from any container. Using one container means (a) a single wait-loop, (b) the
+# panes work under a narrow compose profile, not just --profile full, and
+# (c) crates with NO container at all (auth_service, metrics_worker,
+# lead_deletion_lambda) still get a watcher.
+#
+# Watches are scoped with `--poll -x ... -w <crate>/src`, matching the
+# convention in backend/entrypoint.sh, so editing one domain doesn't kick off a
+# rebuild in the other five. All containers share one target dir and cargo takes
+# a file lock on it, so unscoped watchers queue behind each other on every save.
+# Add `-w common/src` to a window if you want it to rebuild on common changes
+# too (core already does).
+
 name: clickk
 root: ~/Clickk
 tmux_options: -f ~/.config/tmux/.tmux.conf
 pre_window: tmux set-window-option -g main-pane-width 70%
+startup_window: core
+
 windows:
-  - frontend:
+  # ── frontend ──────────────────────────────────────────────────────────────
+  # cms/ and loader/ are separate npm packages with their own LSP roots; open
+  # them from the shell pane in the `stack` window rather than in this nvim.
+  - web:
       root: ~/Clickk/frontend/
       panes:
         - nvim .
-  - user-service:
-      root: ~/Clickk/backend/user_service/
+
+  # ── core: identity, links, shared crate ───────────────────────────────────
+  # auth_service has no container; it rides along on the user-service exec.
+  - core:
+      root: ~/Clickk/backend/
       layout: main-vertical
       panes:
-        - nvim .
-        - bash -c "while ! docker compose exec user-service true 2>/dev/null; do sleep 3; done && docker compose exec user-service cargo watch -x test"
-  - content-offer-service:
-      root: ~/Clickk/backend/content_offer_service/
+        - nvim user_service/ auth_service/ link_service/ common/
+        - bash -c "cd ~/Clickk && while ! docker compose exec -T user-service true 2>/dev/null; do sleep 3; done && docker compose exec user-service cargo watch --poll -x 'test -p user_service -p auth_service -p link_service -p common' -w user_service/src -w auth_service/src -w link_service/src -w common/src"
+
+  # ── content: offers, engagement, kinesis ingest ───────────────────────────
+  # kinesis_lambda runs as the `kinesis-consumer` container.
+  - content:
+      root: ~/Clickk/backend/
       layout: main-vertical
       panes:
-        - nvim .
-        - bash -c "while ! docker compose exec content-offer-service true 2>/dev/null; do sleep 3; done && docker compose exec content-offer-service cargo watch -x test"
-  - engagement_service:
-      root: ~/Clickk/backend/engagement_service/
+        - nvim content_offer_service/ engagement_service/ kinesis_lambda/
+        - bash -c "cd ~/Clickk && while ! docker compose exec -T user-service true 2>/dev/null; do sleep 3; done && docker compose exec user-service cargo watch --poll -x 'test -p content_offer_service -p engagement_service -p kinesis_lambda' -w content_offer_service/src -w engagement_service/src -w kinesis_lambda/src"
+
+  # ── osint: osint_service + osint_worker bins ──────────────────────────────
+  - osint:
+      root: ~/Clickk/backend/
       layout: main-vertical
       panes:
-        - nvim .
-        - bash -c "while ! docker compose exec engagement-service true 2>/dev/null; do sleep 3; done && docker compose exec engagement-service cargo watch -x test"
-  - osint_service:
-      root: ~/Clickk/backend/osint_service/
+        - nvim osint_service/
+        - bash -c "cd ~/Clickk && while ! docker compose exec -T user-service true 2>/dev/null; do sleep 3; done && docker compose exec user-service cargo watch --poll -x 'test -p osint_service' -w osint_service/src"
+
+  # ── aeo: aeo_service + aeo_capture_worker + aeo_scoring_worker bins ───────
+  # Only aeo-service has a compose entry; the two workers are k8s-only
+  # (charts/clickk-backend/values.yaml), but all three live in this crate.
+  - aeo:
+      root: ~/Clickk/backend/
       layout: main-vertical
       panes:
-        - nvim .
-        - bash -c "while ! docker compose exec osint-service true 2>/dev/null; do sleep 3; done && docker compose exec osint-service cargo watch -x test"
-  - aeo_service:
-      root: ~/Clickk/backend/aeo_service/
-      layout: main-vertical
-      panes: 
-        - nvim .
-        - bash -c "while ! docker compose exec aeo-service true 2>/dev/null; do sleep 3; done && docker compose exec aeo-service cargo watch -x test"
-  - link_service:
-      root: ~/Clickk/backend/link_service/ 
+        - nvim aeo_service/
+        - bash -c "cd ~/Clickk && while ! docker compose exec -T user-service true 2>/dev/null; do sleep 3; done && docker compose exec user-service cargo watch --poll -x 'test -p aeo_service' -w aeo_service/src"
+
+  # ── workers: background consumers and lambdas ─────────────────────────────
+  # moment_render_worker + lead_delivery_worker have containers; metrics_worker
+  # is k8s-only; lead_deletion_lambda is deployed as a lambda.
+  - workers:
+      root: ~/Clickk/backend/
       layout: main-vertical
       panes:
-        - nvim .
-        - bash -c "while ! docker compose exec link-service true 2>/dev/null; do sleep 3; done && docker compose exec link-service cargo watch -x test"
-  - kinesis_lambda:
-      root: ~/Clickk/backend/kinesis_lambda/
+        - nvim moment_render_worker/ lead_delivery_worker/ metrics_worker/ lead_deletion_lambda/
+        - bash -c "cd ~/Clickk && while ! docker compose exec -T user-service true 2>/dev/null; do sleep 3; done && docker compose exec user-service cargo watch --poll -x 'test -p moment_render_worker -p lead_delivery_worker -p metrics_worker -p lead_deletion_lambda' -w moment_render_worker/src -w lead_delivery_worker/src -w metrics_worker/src -w lead_deletion_lambda/src"
+
+  # ── stack: bring everything up, plus a shell for just/db.sh/cms/loader ────
+  # `full` already includes every profile (core, content, kinesis, engagement,
+  # osint, aeo, integrations, moments, link, frontend) — no second --profile
+  # flag needed.
+  - stack:
+      root: ~/Clickk/
       layout: main-vertical
       panes:
-        - nvim .
-        - bash -c "while ! docker compose exec kinesis-consumer true 2>/dev/null; do sleep 3; done && docker compose exec kinesis-consumer cargo watch -x test"
-  - common:
-      root: ~/Clickk/backend/common/
-      layout: main-vertical
-      panes:
-        - nvim .
-        - bash -c "while ! docker compose exec user-service true 2>/dev/null; do sleep 3; done && docker compose exec user-service cargo watch -x 'test -p common'"
+        - docker compose --profile full up --build
+        - nvim docker-compose.yaml justfile
+        - # shell: just <recipe>, ./db.sh, nvim cms/, nvim loader/
+
+  # ── iac ───────────────────────────────────────────────────────────────────
   - iac:
       root: ~/Clickk/
       panes:
-        - nvim prod-k8s/ charts/ terraform/
-  - docker:
-      root: ~/Clickk/
-      panes:
-        - nvim docker-compose.yaml
-        -  docker compose --profile full --profile extended up --build
+        - nvim argocd/ charts/ terraform/
