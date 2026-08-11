@@ -1,0 +1,51 @@
+{{FrontSide}}
+
+<hr id=answer>
+
+<!-- Include highlight.js for answer display -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/vs2015.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+
+<h3>Your Answer:</h3>
+<pre><code class="language-python" id="user-code"></code></pre>
+
+<h3>Correct Answer:</h3>
+<pre><code class="language-python">{{Back}}</code></pre>
+
+<script>
+// Get user answer from multiple possible sources
+function getUserAnswer() {
+    // Try global variable first
+    if (window.userAnswer) {
+        return window.userAnswer;
+    }
+    
+    // Try data attribute
+    const bodyAttr = document.body.getAttribute('data-user-answer');
+    if (bodyAttr) {
+        return bodyAttr;
+    }
+    
+    // Try sessionStorage
+    try {
+        const stored = sessionStorage.getItem('currentUserAnswer');
+        if (stored) return stored;
+    } catch(e) {}
+    
+    // Try to get from front side if still available
+    const frontSide = document.getElementById('qa');
+    if (frontSide && window.editor && typeof window.editor.getValue === 'function') {
+        return window.editor.getValue();
+    }
+    
+    return '(No answer provided)';
+}
+
+// Display the answer immediately
+const userAnswer = getUserAnswer();
+document.getElementById('user-code').textContent = userAnswer;
+
+// Apply syntax highlighting
+hljs.highlightAll();
+</script>

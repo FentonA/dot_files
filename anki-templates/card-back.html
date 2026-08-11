@@ -1,0 +1,148 @@
+{{FrontSide}}
+
+<hr id=answer>
+
+<div class="diff-box">
+  <div class="diff-file">--- a/your-answer<br>+++ b/correct-answer</div>
+  <pre id="answer-diff" class="diff"></pre>
+</div>
+
+<h3 class="ans-h">Your Answer</h3>
+<pre><code id="your-code"></code></pre>
+
+<h3 class="ans-h">Correct Answer</h3>
+<div id="correct-answer">{{Back}}</div>
+
+<script src="_highlight.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // No top-level const/let: this script is re-evaluated on every card in the
+  // same webview, and a redeclaration would kill the whole block.
+
+  function htmlToText(el) {
+    if (!el) return '';
+    var html = el.innerHTML
+      // Pygments emits a padded gutter span at the head of every line, holding
+      // either a single space or a line number. Dropping it is what keeps the
+      // indentation lined up with what he actually typed.
+      .replace(/<span[^>]*padding-left[^>]*>[\s\u00a0]*\d*[\s\u00a0]*<\/span>/gi, '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(div|p|pre|li|tr|td)>/gi, '\n')
+      .replace(/<[^>]+>/g, '');
+    var ta = document.createElement('textarea');
+    ta.innerHTML = html;
+    return ta.value;
+  }
+
+  // Trailing whitespace and tab width are never what he is being tested on.
+  function normalise(text) {
+    return text
+      .replace(/\u00a0/g, ' ')
+      .replace(/\r\n?/g, '\n')
+      .replace(/\t/g, '    ')
+      .split('\n')
+      .map(function (l) { return l.replace(/\s+$/, ''); })
+      .join('\n')
+      .replace(/^\n+|\n+$/g, '');
+  }
+
+  function getUserAnswer() {
+    if (typeof window.__ankiUserAnswer === 'string' && window.__ankiUserAnswer !== '') {
+      return window.__ankiUserAnswer;
+    }
+    if (window.__ankiEditor) { try { return window.__ankiEditor.getValue(); } catch (e) {} }
+    if (window.__ankiTextarea) return window.__ankiTextarea.value;
+    try { return sessionStorage.getItem('ankiUserAnswer') || ''; } catch (e) {}
+    return '';
+  }
+
+  // Unified diff over lines, via longest common subsequence.
+  function diffLines(a, b) {
+    var n = a.length, m = b.length, out = [], i, j;
+
+    if (n * m > 250000) {                       // pathological input: skip the DP
+      for (i = 0; i < n; i++) out.push(['-', a[i]]);
+      for (j = 0; j < m; j++) out.push(['+', b[j]]);
+      return out;
+    }
+
+    var dp = [];
+    for (i = 0; i <= n; i++) dp.push(new Uint32Array(m + 1));
+    for (i = n - 1; i >= 0; i--) {
+      for (j = m - 1; j >= 0; j--) {
+        dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1
+                                 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+
+    i = 0; j = 0;
+    while (i < n && j < m) {
+      if (a[i] === b[j]) { out.push([' ', a[i]]); i++; j++; }
+      else if (dp[i + 1][j] >= dp[i][j + 1]) { out.push(['-', a[i]]); i++; }
+      else { out.push(['+', b[j]]); j++; }
+    }
+    while (i < n) { out.push(['-', a[i]]); i++; }
+    while (j < m) { out.push(['+', b[j]]); j++; }
+    return out;
+  }
+
+  function render(rows) {
+    var box = document.getElementById('answer-diff');
+    box.textContent = '';
+    var added = 0, removed = 0;
+
+    rows.forEach(function (row) {
+      var sign = row[0];
+      var line = document.createElement('div');
+      line.className = sign === '+' ? 'dl add' : sign === '-' ? 'dl del' : 'dl ctx';
+      line.textContent = sign + (row[1] === '' ? '' : ' ' + row[1]);
+      box.appendChild(line);
+      if (sign === '+') added++;
+      if (sign === '-') removed++;
+    });
+
+    var stat = document.createElement('div');
+    stat.className = 'diff-stat';
+    stat.textContent = added === 0 && removed === 0
+      ? 'exact match'
+      : removed + ' line' + (removed === 1 ? '' : 's') + ' to fix, ' +
+        added + ' line' + (added === 1 ? '' : 's') + ' missing';
+    document.querySelector('.diff-file').appendChild(stat);
+  }
+
+  // Keep the correct answer rendered as authored (prose, inline code, existing
+  // highlighting) but diff against just its code block when it has one.
+  var answerEl = document.getElementById('correct-answer');
+  var blocks = answerEl.querySelectorAll('pre');
+  var correct = normalise(blocks.length
+    ? Array.prototype.map.call(blocks, htmlToText).join('\n')
+    : htmlToText(answerEl));
+  var yours = normalise(getUserAnswer());
+
+  render(diffLines(
+    yours === '' ? [] : yours.split('\n'),
+    correct === '' ? [] : correct.split('\n')
+  ));
+
+  var yourEl = document.getElementById('your-code');
+  yourEl.textContent = yours === '' ? '(no answer typed)' : yours;
+
+  // _highlight.js is injected as an external script and may not have run yet on
+  // the first card of a session, so poll briefly instead of assuming it is there.
+  (function waitForHljs(tries) {
+    if (!window.hljs) {
+      if (tries > 0) setTimeout(function () { waitForHljs(tries - 1); }, 50);
+      return;
+    }
+    if (yours !== '') {
+      yourEl.className = 'language-' + (window.__ankiLang === 'rust' ? 'rust' : 'python');
+      hljs.highlightElement(yourEl);
+    }
+    answerEl.querySelectorAll('pre code:not(.hljs)').forEach(function (el) {
+      hljs.highlightElement(el);
+    });
+  })(40);
+})();
+</script>

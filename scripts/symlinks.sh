@@ -1,43 +1,90 @@
 #!/usr/bin/env bash
 # scripts/symlinks.sh - Creates all config symlinks
+#
+# Safe to re-run. Two rules make that true:
+#   * ln -sfn, never ln -sf, for anything that resolves to a directory. Without
+#     -n, ln follows an existing symlink-to-dir and creates the link *inside*
+#     it — a second run used to leave you with ~/.config/nvim/nvim.
+#   * anything real already sitting at the destination is moved aside to
+#     .pre-dotfiles.bak rather than clobbered.
+#
+# Linux-only desktop configs (sway/waybar/wofi/dunst) are skipped on macOS.
+
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo "===> Symlinking configs from $DOTFILES_DIR..."
 
-# fish
-mkdir -p ~/.config/fish
-ln -sf "$DOTFILES_DIR/fish/config.fish" ~/.config/fish/config.fish
+case "$(uname)" in
+Darwin) OS=mac ;;
+*) OS=linux ;;
+esac
 
-# tmux
-ln -sf "$DOTFILES_DIR/tmux/.tmux.conf" ~/.tmux.conf
-mkdir -p ~/.config/tmux
-ln -sf "$DOTFILES_DIR/tmux/.tmux.conf" ~/.config/tmux/.tmux.conf
+link() {
+  local src="$1" dest="$2"
 
-# nvim
-ln -sf "$DOTFILES_DIR/nvim" ~/.config/nvim
+  if [ ! -e "$src" ]; then
+    echo "  skip (not in repo): ${src#$DOTFILES_DIR/}"
+    return
+  fi
 
-# ghostty
-mkdir -p ~/.config/ghostty
-ln -sf "$DOTFILES_DIR/ghostty/config" ~/.config/ghostty/config
+  mkdir -p "$(dirname "$dest")"
 
-# tmuxinator
-rm -rf ~/.config/tmuxinator
-ln -sf "$DOTFILES_DIR/tmuxinator" ~/.config/tmuxinator
+  # Move aside anything real in the way. A pre-existing symlink is ours (or
+  # stale) and gets replaced silently; a real file or dir is the user's and
+  # never gets destroyed without a copy left behind.
+  if [ -e "$dest" ] && [ ! -L "$dest" ]; then
+    mv "$dest" "$dest.pre-dotfiles.bak"
+    echo "  backed up $dest -> $(basename "$dest").pre-dotfiles.bak"
+  fi
 
-# dunst
-mkdir -p ~/.config/dunst
-ln -sf "$DOTFILES_DIR/dunst/dunstrc" ~/.config/dunst/dunstrc
+  ln -sfn "$src" "$dest"
+  echo "  $dest"
+}
 
-# sway
-mkdir -p ~/.config/sway
-ln -sf "$DOTFILES_DIR/config/sway/config" ~/.config/sway/config
+# ── fish ──────────────────────────────────────────────────────────────────────
+link "$DOTFILES_DIR/fish/config.fish" ~/.config/fish/config.fish
 
-# waybar
-mkdir -p ~/.config/waybar
-ln -sf "$DOTFILES_DIR/config/waybar/config" ~/.config/waybar/config
-ln -sf "$DOTFILES_DIR/config/waybar/style.css" ~/.config/waybar/style.css
+# Functions are linked individually rather than linking the whole directory:
+# fish's `funcsave` writes into ~/.config/fish/functions, and if that were a
+# link into the repo every saved one-off would show up as an untracked change.
+# The glob means new files in the repo are picked up without editing this list.
+mkdir -p ~/.config/fish/functions
+for fn in "$DOTFILES_DIR"/fish/functions/*.fish; do
+  [ -e "$fn" ] || continue
+  link "$fn" ~/.config/fish/functions/"$(basename "$fn")"
+done
 
-# wofi
-mkdir -p ~/.config/wofi
-ln -sf "$DOTFILES_DIR/config/wofi/style.css" ~/.config/wofi/style.css
+# ── tmux ──────────────────────────────────────────────────────────────────────
+link "$DOTFILES_DIR/tmux/.tmux.conf" ~/.tmux.conf
+link "$DOTFILES_DIR/tmux/.tmux.conf" ~/.config/tmux/.tmux.conf
+
+# ── nvim ──────────────────────────────────────────────────────────────────────
+link "$DOTFILES_DIR/nvim" ~/.config/nvim
+
+# ── ghostty ───────────────────────────────────────────────────────────────────
+link "$DOTFILES_DIR/ghostty/config" ~/.config/ghostty/config
+# Ghostty on macOS reads the XDG path too, but its own docs point at the
+# Application Support path, so link both and stay out of the argument.
+if [ "$OS" = mac ]; then
+  link "$DOTFILES_DIR/ghostty/config" \
+    "$HOME/Library/Application Support/com.mitchellh.ghostty/config"
+fi
+
+# ── tmuxinator ────────────────────────────────────────────────────────────────
+link "$DOTFILES_DIR/tmuxinator" ~/.config/tmuxinator
+
+# ── anki card templates (see anki-templates/README.md) ────────────────────────
+link "$DOTFILES_DIR/anki-templates" ~/anki-templates
+
+# ── linux desktop ─────────────────────────────────────────────────────────────
+# sway/waybar/wofi/dunst are Wayland-only; none of it means anything on macOS.
+if [ "$OS" = linux ]; then
+  link "$DOTFILES_DIR/dunst/dunstrc" ~/.config/dunst/dunstrc
+  link "$DOTFILES_DIR/config/sway/config" ~/.config/sway/config
+  link "$DOTFILES_DIR/config/waybar/config" ~/.config/waybar/config
+  link "$DOTFILES_DIR/config/waybar/style.css" ~/.config/waybar/style.css
+  link "$DOTFILES_DIR/config/wofi/style.css" ~/.config/wofi/style.css
+else
+  echo "  skip (linux only): dunst, sway, waybar, wofi"
+fi
 
 echo "===> Symlinks created"
