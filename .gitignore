@@ -1,2 +1,7 @@
 /raycast
 nvim/lua/custom/plugins/claude-api-key.txt
+
+# tfenv installs these itself; tfenv/version (the pin) stays tracked.
+# The 1.9.5 build that used to live here was a linux_amd64 ELF — dead weight in
+# every clone and non-functional on Apple Silicon.
+tfenv/versions/
