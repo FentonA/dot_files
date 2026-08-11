@@ -40,4 +40,7 @@ ln -sf "$DOTFILES_DIR/config/waybar/style.css" ~/.config/waybar/style.css
 mkdir -p ~/.config/wofi
 ln -sf "$DOTFILES_DIR/config/wofi/style.css" ~/.config/wofi/style.css
 
+# anki card templates (see anki-templates/README.md — needs the AnkiConnect add-on)
+ln -sfn "$DOTFILES_DIR/anki-templates" ~/anki-templates
+
 echo "===> Symlinks created"
