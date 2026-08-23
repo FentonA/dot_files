@@ -137,6 +137,23 @@ launch from every session and would pin the browser to one Space permanently.
 It refuses to touch prefs while Zen is running — a live Zen rewrites the whole
 file on exit and would discard the change.
 
+**VPN.** `Sway(fonn)` brings up NordVPN in Seattle, from `fonn.config`:
+
+```
+exec $HOME/.local/bin/vpn-connect United_States Seattle
+```
+
+`scripts/vpn-connect` is idempotent — a no-op if the tunnel is already up in
+that city, and it moves the tunnel if it is up somewhere else. It waits for DNS
+before connecting, because sway's `exec` fires before NetworkManager is
+necessarily usable and a bare `nordvpn connect` loses that race at login and
+fails silently, which leaves you unprotected rather than obviously broken. Logs
+to `$XDG_RUNTIME_DIR/vpn-connect.log`.
+
+It lives in `fonn.config` rather than `fonn.layout` because the layout file is
+about which app owns which screen, and this opens no window. The plain `Sway`
+session does not touch the VPN.
+
 **Installing a session** needs root, since GDM only reads
 `/usr/share/wayland-sessions`:
 

@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# vpn-connect — make sure NordVPN is connected somewhere specific.
+#
+#   vpn-connect Seattle
+#   vpn-connect United_States Seattle
+#
+# Run from config/sway/profiles/fonn.config at login. Safe to run again: if the
+# tunnel is already up in the requested city it does nothing.
+#
+# Two things make this more than a one-line `nordvpn connect`:
+#
+#   * sway's exec fires long before the network is necessarily usable. A bare
+#     connect at login loses a race with NetworkManager and fails, leaving you
+#     silently unprotected. So wait for DNS to work first, then retry.
+#   * the connect is idempotent, so re-running it mid-session (or logging out
+#     and back in) doesn't tear down a working tunnel and rebuild it.
+
+set -uo pipefail
+
+WAIT_NET="${VPN_WAIT_NET:-90}"      # seconds to wait for the network at login
+RETRIES="${VPN_RETRIES:-3}"
+LOG="${XDG_RUNTIME_DIR:-/tmp}/vpn-connect.log"
+
+log() { printf '%s %s\n' "$(date +%H:%M:%S)" "$*" | tee -a "$LOG" >&2; }
+
+[ $# -ge 1 ] || { log "usage: vpn-connect [<country>] <city>"; exit 1; }
+CITY="${*: -1}"                      # last argument is the city
+TARGET=("$@")                        # everything is passed through to connect
+
+command -v nordvpn >/dev/null || { log "nordvpn not installed — skipping"; exit 0; }
+
+: > "$LOG"
+
+# The daemon has to be up before the CLI can say anything useful.
+if ! systemctl is-active --quiet nordvpnd; then
+  log "nordvpnd not active — waiting"
+  for _ in $(seq 1 30); do
+    systemctl is-active --quiet nordvpnd && break
+    sleep 1
+  done
+fi
+
+status() { timeout 20 nordvpn status 2>/dev/null; }
+
+# Already where we want to be? Match the City line rather than Status alone, so
+# a tunnel to the wrong city gets corrected instead of silently accepted.
+if status | grep -qi '^ *Status: *Connected' \
+   && status | grep -qiE "^ *City: *${CITY//_/ }$"; then
+  log "already connected to $CITY — nothing to do"
+  exit 0
+fi
+
+# Wait for name resolution. This is the cheapest honest proxy for "the network
+# is actually usable"; nordvpn's own connect fails fast and unhelpfully if DNS
+# isn't up yet.
+deadline=$((SECONDS + WAIT_NET))
+until getent hosts nordvpn.com >/dev/null 2>&1; do
+  if ((SECONDS >= deadline)); then
+    log "no DNS after ${WAIT_NET}s — trying to connect anyway"
+    break
+  fi
+  sleep 2
+done
+
+for attempt in $(seq 1 "$RETRIES"); do
+  log "connecting to ${TARGET[*]} (attempt $attempt/$RETRIES)"
+  if timeout 90 nordvpn connect "${TARGET[@]}" >>"$LOG" 2>&1; then
+    log "connected: $(status | grep -iE '^ *(Status|City|Server|Hostname):' | tr '\n' ' ')"
+    exit 0
+  fi
+  log "attempt $attempt failed"
+  sleep $((attempt * 5))
+done
+
+log "could not connect to ${TARGET[*]} after $RETRIES attempts"
+exit 1
