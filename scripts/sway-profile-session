@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# sway-profile-session — login-session launcher for a sway workspace profile.
+#
+#   sway-profile-session careerplug
+#
+# This is what the "Sway — CareerPlug" entry in the login screen runs. It starts
+# the same source-built Sway 1.11 stack as sway-next-session, but points sway at
+# a profile-specific config instead of the default one:
+#
+#   ~/.config/sway/profiles/<name>.config
+#     -> include ../common          (all the bindings, colors, rules, daemons)
+#     -> exec sway-profile <name>   (one app per workspace)
+#
+# The heavy lifting — /opt/sway-next on PATH, the wlroots 0.19 libraries, the
+# 0.8.x portal, the NVIDIA flags — is all delegated to sway-next-session, which
+# already passes its arguments through to sway. Keeping that in one place means
+# a change to the graphics stack doesn't have to be made twice.
+#
+# Installed to /opt/sway-next/bin/ by scripts/install-sway-sessions.sh.
+set -eu
+
+PROFILE="${1:-}"
+[ -n "$PROFILE" ] || { echo "usage: sway-profile-session <profile>" >&2; exit 1; }
+shift
+
+CONFIG="$HOME/.config/sway/profiles/$PROFILE.config"
+
+# Fall back to the ordinary session rather than dumping the user at the login
+# screen with no explanation. A missing profile config should cost you your
+# custom layout, not your ability to log in.
+if [ ! -r "$CONFIG" ]; then
+  echo "sway-profile-session: no config at $CONFIG — falling back to the default session" >&2
+  exec /opt/sway-next/bin/sway-next-session "$@"
+fi
+
+exec /opt/sway-next/bin/sway-next-session -c "$CONFIG" "$@"

@@ -69,15 +69,41 @@ hr#answer {
   resize: none;
 }
 
-#vim-statusbar {
-  height: 20px;
+#editor-footer {
+  display: flex;
+  align-items: center;
   background: #1e1e1e;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+#vim-statusbar {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 20px;
   color: #fff;
   font-family: "JetBrains Mono", Menlo, Consolas, monospace;
   font-size: 12px;
   padding: 2px 8px;
-  border-radius: 0 0 8px 8px;
+  white-space: nowrap;
+  overflow: hidden;
 }
+
+/* which language the editor is in, and what decided it */
+#lang-badge {
+  flex: 0 0 auto;
+  font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  padding: 2px 10px;
+  cursor: pointer;
+  user-select: none;
+  color: #8b949e;
+}
+
+#lang-badge.rust   { color: #e08a4b; }
+#lang-badge.python { color: #6ba4d8; }
+#lang-badge:hover  { background: #2a2a2a; }
 
 /* ---- unified diff ---- */
 

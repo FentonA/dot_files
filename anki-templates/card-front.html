@@ -1,8 +1,12 @@
 {{Front}}
 
 <div id="editor-container"></div>
-<div id="vim-statusbar"></div>
-<div id="card-meta" style="display:none" data-deck="{{Deck}}" data-type="{{Type}}"></div>
+<div id="editor-footer">
+  <div id="vim-statusbar"></div>
+  <div id="lang-badge" title="click, or Alt+L, or :lang rust — to switch"></div>
+</div>
+<div id="card-meta" style="display:none"
+     data-deck="{{Deck}}" data-type="{{Type}}" data-tags="{{Tags}}"></div>
 
 <script>
 (function () {
@@ -12,39 +16,212 @@
   // declare a top-level const/let and nothing may be injected twice.
   var VS = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs';
 
-  var host = document.getElementById('editor-container');
-  var bar  = document.getElementById('vim-statusbar');
-  var meta = document.getElementById('card-meta') || { dataset: {} };
+  var host  = document.getElementById('editor-container');
+  var bar   = document.getElementById('vim-statusbar');
+  var badge = document.getElementById('lang-badge');
+  var meta  = document.getElementById('card-meta') || { dataset: {} };
 
   var deck = meta.dataset.deck || '';
   var type = meta.dataset.type || '';
-  window.__ankiLang = /rust/i.test(type) || /rust/i.test(deck) ? 'rust' : 'python';
+  var tags = meta.dataset.tags || '';
 
-  // {{FrontSide}} re-runs this script on the answer side. Don't rebuild the
-  // editor there — it would clear the answer we are about to diff.
-  if (document.getElementById('answer')) {
+  // ---- language ----------------------------------------------------------
+  //
+  // Decided in this order, first hit wins:
+  //   1. a tag on the note        (rust / rs / python / py, incl. lang::rust)
+  //   2. the note type name       ("Rust Code")
+  //   3. a deck rule below        — the plain "assign a language to a deck" case
+  //   4. sniffing the question text
+  //   5. python
+  //
+  // 1-3 lock the choice for the card. 4-5 leave it unlocked, so what he
+  // actually types can still flip it (see liveDetect). Alt+L / :lang always
+  // wins and locks.
+
+  var DECK_RULES = [
+    [/^Rust(::|$)/i,                       'rust'],
+    [/^Swish Prep::Rust(::|$)/i,           'rust'],
+    [/^Swish Prep::Low-Level(::|$)/i,      'rust'],
+    [/^Swish Prep::Odds Engine(::|$)/i,    'rust'],
+    [/^Swish Prep::Interview(::|$)/i,      'rust'],
+    [/^Swish Prep::Python(::|$)/i,         'python'],
+    [/^Coding Interviews(::|$)/i,          'python']
+    // Swish Prep::Estimation / ::Stats and System Designs are prose decks —
+    // deliberately unlisted, so they auto-detect instead of being pinned.
+  ];
+
+  // Weighted signals. Weight 4 = names the language outright, 3 = syntax that
+  // only exists in that language, 1-2 = leans.
+  var RUST_SIGNALS = [
+    [/\b(rust|rustc|cargo|rustfmt|clippy|tokio|serde|crates\.io)\b/gi, 4],
+    [/\bfn\s+\w+\s*[(<]/g,                                            3],
+    [/\blet\s+(mut\s+)?\w/g,                                          3],
+    [/\bimpl\b/g,                                                     3],
+    [/\bpub\s+(fn|struct|enum|mod|trait|const|use|type)\b/g,          3],
+    [/&(mut\s+)?self\b/g,                                             3],
+    [/#\[[^\]\n]{1,60}\]/g,                                           3],
+    [/\b(struct|enum|trait|crate|mod|where|dyn|unsafe)\b/g,           2],
+    [/\buse\s+[\w:]+::/g,                                             2],
+    [/->\s*[A-Z&][\w<>:&' ]*/g,                                       2],
+    [/\b(Vec|HashMap|HashSet|BTreeMap|Option|Result|Box|Rc|Arc|RefCell|String)\s*[<:]/g, 2],
+    [/=>\s*\S/g,                                                      2],
+    [/\b\w+!\s*[(\[{"]/g,                                             2],
+    [/\.(unwrap|expect|iter|collect|to_string|as_str|borrow_mut)\s*\(/g, 2],
+    [/\b(Some|None|Ok|Err)\s*[(,)]/g,                                 2],
+    [/::/g,                                                           1],
+    [/\b(usize|isize|u8|u16|u32|u64|i8|i16|i32|i64|f32|f64|bool|str)\b/g, 1],
+    [/;\s*$/gm,                                                       1]
+  ];
+
+  var PY_SIGNALS = [
+    [/\b(python|py3|pytest|numpy|pandas|pypi|cpython)\b/gi,           4],
+    [/\bdef\s+\w+\s*\(/g,                                             3],
+    [/\bimport\s+[\w.]|\bfrom\s+[\w.]+\s+import\b/g,                  3],
+    [/\belif\b/g,                                                     3],
+    [/__\w+__/g,                                                      3],
+    [/\bself\b/g,                                                     2],
+    [/\b(None|True|False)\b/g,                                        2],
+    [/\bprint\s*\(/g,                                                 2],
+    [/\blambda\b/g,                                                   2],
+    [/:\s*$/gm,                                                       2],
+    [/\bfor\s+\w+(\s*,\s*\w+)*\s+in\b/g,                              2],
+    [/\b(is\s+not|not\s+in|is\s+None|if\s+__name__)\b/g,              2],
+    [/\bf["']/g,                                                      2],
+    [/\b(range|len|enumerate|sorted|zip|dict|set|defaultdict|deque)\s*\(/g, 2],
+    [/\.(append|extend|items|keys|values|join|split|strip)\s*\(/g,    1],
+    [/#[ \t]\S/g,                                                     1]
+  ];
+
+  function score(text, signals) {
+    var total = 0;
+    for (var i = 0; i < signals.length; i++) {
+      var hits = text.match(signals[i][0]);
+      // Cap per signal so one repeated token can't carry the whole verdict.
+      if (hits) total += Math.min(hits.length, 4) * signals[i][1];
+    }
+    return total;
+  }
+
+  // 'rust' | 'python' | null — null means "not decisive, don't act on this".
+  function sniff(text) {
+    if (!text) return null;
+    var r = score(text, RUST_SIGNALS);
+    var p = score(text, PY_SIGNALS);
+    if (r >= 4 && r - p >= 3) return 'rust';
+    if (p >= 4 && p - r >= 3) return 'python';
+    return null;
+  }
+  window.__ankiSniffLang = sniff;
+
+  function resolve(questionText) {
+    var t = ' ' + tags.toLowerCase().replace(/::/g, ' ') + ' ';
+    if (/\s(rust|rs)\s/.test(t))          return ['rust',   'tag',  true];
+    if (/\s(python|py|py3)\s/.test(t))    return ['python', 'tag',  true];
+    if (/rust/i.test(type))               return ['rust',   'type', true];
+    if (/python/i.test(type))             return ['python', 'type', true];
+    for (var i = 0; i < DECK_RULES.length; i++) {
+      if (DECK_RULES[i][0].test(deck))    return [DECK_RULES[i][1], 'deck', true];
+    }
+    var s = sniff(questionText);
+    if (s)                                return [s, 'question', false];
+    return ['python', 'default', false];
+  }
+
+  function paint() {
+    if (!badge) return;
+    badge.textContent = window.__ankiLang + ' · ' + window.__ankiLangSource;
+    badge.className = window.__ankiLang;
+  }
+
+  function setLang(lang, source, lock) {
+    window.__ankiLang = lang;
+    window.__ankiLangSource = source;
+    window.__ankiLangLocked = !!lock;
+    if (window.__ankiEditor && window.monaco) {
+      try {
+        monaco.editor.setModelLanguage(window.__ankiEditor.getModel(), lang);
+      } catch (e) {}
+    }
+    paint();
+  }
+
+  // The question, minus everything this template itself put on the page — the
+  // badge says "python", which would otherwise sniff every unclaimed card python.
+  function questionText() {
+    var copy = document.body.cloneNode(true);
+    ['#editor-container', '#editor-footer', '#card-meta'].forEach(function (sel) {
+      var n = copy.querySelector(sel);
+      if (n && n.parentNode) n.parentNode.removeChild(n);
+    });
+    return (copy.textContent || '').slice(0, 4000);
+  }
+
+  // The answer side re-runs this whole script through its FrontSide. Re-deciding
+  // there would throw away whatever the typing-time detection settled on, so only
+  // decide on the question side (or if somehow nothing has decided yet).
+  var onAnswer = !!document.getElementById('answer');
+  if (!onAnswer || typeof window.__ankiLang !== 'string') {
+    var r = resolve(questionText());
+    window.__ankiLang = r[0];
+    window.__ankiLangSource = r[1];
+    window.__ankiLangLocked = r[2];
+  }
+  paint();
+
+  // Don't rebuild the editor on the answer side — it would clear the answer we
+  // are about to diff.
+  if (onAnswer) {
     if (host) host.style.display = 'none';
-    if (bar) bar.style.display = 'none';
+    var footer = document.getElementById('editor-footer');
+    if (footer) footer.style.display = 'none';
     window.__ankiReveal = null;
+    window.__ankiToggleLang = null;
     return;
   }
 
   window.__ankiUserAnswer = '';   // new question: forget the previous card's answer
   var built = false;
+  var liveTimer = null;
+
+  function value() {
+    return window.__ankiEditor ? window.__ankiEditor.getValue()
+         : window.__ankiTextarea ? window.__ankiTextarea.value : '';
+  }
+
+  // Only for cards no rule claimed: let the code he is writing settle it.
+  function liveDetect() {
+    if (window.__ankiLangLocked) return;
+    var v = value();
+    if (v.replace(/\s/g, '').length < 25) return;
+    var s = sniff(v);
+    if (s && s !== window.__ankiLang) setLang(s, 'typed', false);
+  }
 
   function save() {
-    var v = window.__ankiEditor ? window.__ankiEditor.getValue()
-          : window.__ankiTextarea ? window.__ankiTextarea.value : '';
+    var v = value();
     window.__ankiUserAnswer = v;
     try { sessionStorage.setItem('ankiUserAnswer', v); } catch (e) {}
+    if (!window.__ankiLangLocked) {
+      clearTimeout(liveTimer);
+      liveTimer = setTimeout(liveDetect, 350);
+    }
     return v;
   }
 
   function reveal() {
     save();
+    clearTimeout(liveTimer);
+    liveDetect();
     if (typeof pycmd !== 'undefined') pycmd('ans');
   }
   window.__ankiReveal = reveal;
+
+  window.__ankiToggleLang = function () {
+    setLang(window.__ankiLang === 'rust' ? 'python' : 'rust', 'manual', true);
+    if (window.__ankiEditor) window.__ankiEditor.focus();
+    else if (window.__ankiTextarea) window.__ankiTextarea.focus();
+  };
+  if (badge) badge.onclick = function () { window.__ankiToggleLang(); };
 
   // One global key hook for the session; it dispatches to the current card.
   if (!window.__ankiKeyHook) {
@@ -53,6 +230,10 @@
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && window.__ankiReveal) {
         e.preventDefault();
         window.__ankiReveal();
+      }
+      if (e.altKey && (e.key === 'l' || e.key === 'L') && window.__ankiToggleLang) {
+        e.preventDefault();
+        window.__ankiToggleLang();
       }
     });
   }
@@ -79,6 +260,15 @@
       var Vim = window.MonacoVim.VimMode.Vim;
       Vim.defineEx('ans', 'ans', reveal);
       Vim.defineEx('write', 'w', reveal);
+      // :lang rust | :lang py — and bare :rust / :python
+      Vim.defineEx('lang', 'lang', function (cm, params) {
+        var a = ((params && params.args && params.args[0]) || '').toLowerCase();
+        if (/^(rust|rs)$/.test(a)) setLang('rust', 'manual', true);
+        else if (/^(python|py|py3)$/.test(a)) setLang('python', 'manual', true);
+        else status('usage: :lang rust | :lang python  (now: ' + window.__ankiLang + ')');
+      });
+      Vim.defineEx('rust', 'ru', function () { setLang('rust', 'manual', true); });
+      Vim.defineEx('python', 'py', function () { setLang('python', 'manual', true); });
     } catch (e) {
       status('vim failed: ' + e);
     }

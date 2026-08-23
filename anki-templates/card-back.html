@@ -3,7 +3,7 @@
 <hr id=answer>
 
 <div class="diff-box">
-  <div class="diff-file">--- a/your-answer<br>+++ b/correct-answer</div>
+  <div class="diff-file"><span id="diff-paths">--- a/your-answer<br>+++ b/correct-answer</span></div>
   <pre id="answer-diff" class="diff"></pre>
 </div>
 
@@ -46,6 +46,36 @@
       .map(function (l) { return l.replace(/\s+$/, ''); })
       .join('\n')
       .replace(/^\n+|\n+$/g, '');
+  }
+
+  // Anki's editor has no code-block button, so the Back field can mark code with
+  // markdown fences (```rust … ```) and this turns them into real highlighted
+  // blocks at review time. The fence body is read as *text* — Anki stores editor
+  // newlines as <br> and indentation as &nbsp;, which htmlToText undoes — so
+  // pasted code keeps its indentation and never has to be hand-escaped.
+  // Everything outside a fence is left exactly as authored.
+  function expandFences(el) {
+    var html = el.innerHTML;
+    if (html.indexOf('```') < 0) return '';
+    var declared = '';
+    var out = html.replace(
+      /```[ \t]*([a-z0-9+#]*)[ \t]*(?:<br\s*\/?>|<\/div>|\n)?([\s\S]*?)```/gi,
+      function (whole, tag, body) {
+        var lang = /^(rs|rust)$/i.test(tag) ? 'rust'
+                 : /^(py|python|python3)$/i.test(tag) ? 'python' : '';
+        if (lang && !declared) declared = lang;
+        var tmp = document.createElement('div');
+        tmp.innerHTML = body;
+        var pre = document.createElement('pre');
+        var code = document.createElement('code');
+        if (lang) code.className = 'language-' + lang;
+        code.textContent = normalise(htmlToText(tmp));
+        pre.appendChild(code);
+        return pre.outerHTML;
+      }
+    );
+    if (out !== html) el.innerHTML = out;
+    return declared;
   }
 
   function getUserAnswer() {
@@ -115,11 +145,31 @@
   // Keep the correct answer rendered as authored (prose, inline code, existing
   // highlighting) but diff against just its code block when it has one.
   var answerEl = document.getElementById('correct-answer');
+  var fenceLang = expandFences(answerEl);
   var blocks = answerEl.querySelectorAll('pre');
   var correct = normalise(blocks.length
     ? Array.prototype.map.call(blocks, htmlToText).join('\n')
     : htmlToText(answerEl));
   var yours = normalise(getUserAnswer());
+
+  // When nothing claimed this card (prose decks), the reference answer is the
+  // best evidence of what it is in. When a tag/notetype/deck rule did claim it,
+  // leave it alone — those answers are often prose *about* the other language
+  // ("tokio vs asyncio"), which sniffs the wrong way.
+  var lang = window.__ankiLang === 'rust' ? 'rust' : 'python';
+  if (fenceLang) {
+    lang = fenceLang;          // ```rust on the note is the most explicit signal there is
+  } else if (!window.__ankiLangLocked) {
+    var sniffed = window.__ankiSniffLang ? window.__ankiSniffLang(correct) : null;
+    if (sniffed) lang = sniffed;
+  }
+  window.__ankiLang = lang;
+
+  var paths = document.getElementById('diff-paths');
+  if (paths) {
+    var ext = lang === 'rust' ? 'rs' : 'py';
+    paths.innerHTML = '--- a/your-answer.' + ext + '<br>+++ b/correct-answer.' + ext;
+  }
 
   render(diffLines(
     yours === '' ? [] : yours.split('\n'),
@@ -137,10 +187,13 @@
       return;
     }
     if (yours !== '') {
-      yourEl.className = 'language-' + (window.__ankiLang === 'rust' ? 'rust' : 'python');
+      yourEl.className = 'language-' + lang;
       hljs.highlightElement(yourEl);
     }
     answerEl.querySelectorAll('pre code:not(.hljs)').forEach(function (el) {
+      // hljs auto-detection is coin-flippy on short snippets; we already know
+      // the card's language, so only let it guess when the note says otherwise.
+      if (!/\blang(uage)?-\w+/.test(el.className)) el.className += ' language-' + lang;
       hljs.highlightElement(el);
     });
   })(40);

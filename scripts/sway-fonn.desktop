@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Sway(fonn)
+Comment=Sway 1.11 — fonn profile
+Exec=/opt/sway-next/bin/sway-profile-session fonn
+Type=Application
+DesktopNames=sway

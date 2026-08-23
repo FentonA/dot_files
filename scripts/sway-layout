@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# sway-layout — open one app per workspace at sway startup.
+#
+#   sway-layout fonn          # apply ~/.config/sway-layouts/fonn.layout
+#   sway-layout fonn --dry-run
+#
+# Run from config/sway/profiles/fonn.config as:  exec $HOME/.local/bin/sway-layout fonn
+#
+# The whole trick is that sway opens a new window on whatever workspace is
+# focused. So rather than launching everything and then trying to work out which
+# window belongs where, this switches to the workspace first, launches one app,
+# and waits for a window to show up before moving to the next.
+#
+# That matters because identifying windows is genuinely unreliable here: Slack
+# and Obsidian are XWayland (class, no app_id), Obsidian is a flatpak, and
+# ghostty silently refuses to start at all if --class isn't a valid reverse-DNS
+# GTK application id. Waiting on "did the count go up" sidesteps all of it.
+#
+# The cost is that startup is serial — roughly the sum of the apps' start times,
+# not the slowest one. At login that is the right trade: correct beats quick.
+
+set -uo pipefail
+
+LAYOUT_DIR="${SWAY_LAYOUT_DIR:-$HOME/.config/sway-layouts}"
+TIMEOUT="${SWAY_LAYOUT_TIMEOUT:-30}"     # per app, seconds
+LOG="${XDG_RUNTIME_DIR:-/tmp}/sway-layout.log"
+
+# Log to a file as well as stderr. At login there is no terminal attached, and
+# notify-send is worse than useless there — with no notification daemon up yet
+# it blocks on a dbus activation timeout for minutes.
+log() { printf '%s %s\n' "$(date +%H:%M:%S)" "$*" | tee -a "$LOG" >&2; }
+die() { log "error: $*"; exit 1; }
+
+command -v swaymsg >/dev/null || die "swaymsg not found — not a sway session?"
+command -v jq      >/dev/null || die "jq is required"
+
+# Number of real windows on a workspace. Views are the tree nodes that own a
+# pid; workspaces and split containers don't.
+ws_count() {
+  swaymsg -t get_tree | jq --arg ws "$1" '
+    [ recurse(.nodes[]?, .floating_nodes[]?)
+      | select(.type == "workspace" and .name == $ws)
+      | recurse(.nodes[]?, .floating_nodes[]?)
+      | select(.pid != null) ] | length' 2>/dev/null || echo 0
+}
+
+NAME="${1:-}"; [ -n "$NAME" ] || die "usage: sway-layout <name> [--dry-run]"
+DRY=0; [ "${2:-}" = "--dry-run" ] && DRY=1
+
+FILE="$LAYOUT_DIR/$NAME.layout"
+[ -r "$FILE" ] || die "no layout at $FILE"
+
+: > "$LOG"
+log "applying layout '$NAME'"
+
+# Read the whole file up front. The loop below launches apps and sleeps, and
+# reading line-by-line from the file over that would keep the fd open for the
+# entire startup for no reason.
+mapfile -t LINES < <(grep -vE '^[[:space:]]*(#|$)' "$FILE")
+[ "${#LINES[@]}" -gt 0 ] || die "$FILE has no screens defined"
+
+first_ws=""
+deferred=()
+for line in "${LINES[@]}"; do
+  ws="${line%%[[:space:]]*}"                       # first token
+  cmd="${line#"$ws"}"                              # the rest
+  cmd="${cmd#"${cmd%%[![:space:]]*}"}"             # ltrim
+
+  # `-` means "no screen of its own" — a scratchpad app. Held back until every
+  # numbered screen is placed, because such a window maps briefly on the focused
+  # workspace before its for_window rule moves it away, and that flicker would
+  # otherwise be counted as the screen's own app showing up.
+  if [ "$ws" = "-" ]; then
+    [ -n "$cmd" ] && deferred+=("$cmd")
+    continue
+  fi
+
+  if ! [[ $ws =~ ^[0-9]+$ ]]; then
+    log "skip: '$line' does not start with a workspace number or -"
+    continue
+  fi
+  [ -n "$cmd" ] || { log "skip: workspace $ws has no command"; continue; }
+  [ -z "$first_ws" ] && first_ws=$ws
+
+  if ((DRY)); then
+    log "would open on workspace $ws: $cmd"
+    continue
+  fi
+
+  before=$(ws_count "$ws")
+  if [ "$before" -gt 0 ]; then
+    log "workspace $ws already has $before window(s) — leaving it alone"
+    continue
+  fi
+
+  log "workspace $ws: $cmd"
+  swaymsg workspace number "$ws" >/dev/null
+
+  # setsid so the app is not in this script's process group: sway reaps the
+  # exec'd command's group when the script exits, which would take the apps
+  # down with it.
+  setsid sh -c "$cmd" >/dev/null 2>&1 &
+
+  deadline=$((SECONDS + TIMEOUT))
+  while ((SECONDS < deadline)); do
+    [ "$(ws_count "$ws")" -gt "$before" ] && break
+    sleep 0.25
+  done
+
+  if [ "$(ws_count "$ws")" -gt "$before" ]; then
+    log "workspace $ws: window up"
+  else
+    log "workspace $ws: nothing appeared within ${TIMEOUT}s — moving on"
+  fi
+done
+
+# Land on the first screen before starting the scratchpad apps, so that if one
+# of them ignores its rule it lands somewhere predictable rather than on
+# whichever screen happened to be focused last.
+[ -n "$first_ws" ] && ((DRY == 0)) && swaymsg workspace number "$first_ws" >/dev/null
+
+for cmd in ${deferred[@]+"${deferred[@]}"}; do
+  if ((DRY)); then log "would start (no screen): $cmd"; continue; fi
+  log "no screen: $cmd"
+  setsid sh -c "$cmd" >/dev/null 2>&1 &
+done
+
+((DRY)) && exit 0
+log "done — landed on workspace ${first_ws:-1}"
