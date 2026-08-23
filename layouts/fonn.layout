@@ -18,7 +18,10 @@
 # mid-session won't open a second copy of anything.
 
 1   ghostty
-2   zen
+# zen-space sets Zen's `zen.workspaces.active` pref to the named Space's UUID
+# just before launching, because Zen has no command-line flag for Spaces. The
+# Space is looked up by name, so recreating it in Zen won't break this line.
+2   zen-space CareerPlug
 
 # The `slack` on PATH is the snap (/snap/bin/slack). It starts a process but
 # never maps a window on this machine — that is why `exec slack` in the old

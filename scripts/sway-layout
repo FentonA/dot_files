@@ -21,6 +21,17 @@
 
 set -uo pipefail
 
+# sway inherits its PATH from the login manager, which does NOT include
+# ~/.local/bin — that is added by the shell profile, and nothing here is a login
+# shell. Anything installed there (zen, for one) would simply not be found.
+# Prepending rather than appending so a hand-installed build wins over a distro
+# package of the same name, which is the reason it is in ~/.local/bin.
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) PATH="$HOME/.local/bin:$PATH" ;;
+esac
+export PATH
+
 LAYOUT_DIR="${SWAY_LAYOUT_DIR:-$HOME/.config/sway-layouts}"
 TIMEOUT="${SWAY_LAYOUT_TIMEOUT:-30}"     # per app, seconds
 LOG="${XDG_RUNTIME_DIR:-/tmp}/sway-layout.log"
@@ -87,6 +98,17 @@ for line in "${LINES[@]}"; do
     continue
   fi
 
+  # Check the binary exists before launching. Without this a typo or a missing
+  # app is indistinguishable from a slow one: the launch fails instantly, and
+  # the script then waits out the full timeout for a window that is never
+  # coming. That is exactly how a missing zen cost 30 seconds and looked like a
+  # hang rather than a "not installed".
+  exe="${cmd%%[[:space:]]*}"
+  if ! command -v "$exe" >/dev/null 2>&1; then
+    log "workspace $ws: '$exe' not found on PATH — skipping (PATH=$PATH)"
+    continue
+  fi
+
   before=$(ws_count "$ws")
   if [ "$before" -gt 0 ]; then
     log "workspace $ws already has $before window(s) — leaving it alone"
@@ -121,6 +143,21 @@ done
 
 for cmd in ${deferred[@]+"${deferred[@]}"}; do
   if ((DRY)); then log "would start (no screen): $cmd"; continue; fi
+  exe="${cmd%%[[:space:]]*}"
+  if ! command -v "$exe" >/dev/null 2>&1; then
+    log "no screen: '$exe' not found on PATH — skipping"
+    continue
+  fi
+  # The numbered screens are kept idempotent by the "workspace already has a
+  # window" check, but these have no workspace to test. Without a guard of their
+  # own, re-running mid-session opens a second Thunderbird window every time.
+  # Match on process name first (covers `thunderbird`, `ticktick`), then on the
+  # full command line (covers wrappers like `flatpak run ...`, where the process
+  # is never named after the first word).
+  if pgrep -x "$(basename "$exe")" >/dev/null 2>&1 || pgrep -f -- "$cmd" >/dev/null 2>&1; then
+    log "no screen: $exe already running — leaving it alone"
+    continue
+  fi
   log "no screen: $cmd"
   setsid sh -c "$cmd" >/dev/null 2>&1 &
 done

@@ -115,6 +115,27 @@ Two gotchas found the hard way, both already handled:
 * TickTick is XWayland, so the old `for_window [app_id="Ticktick"]` scratchpad
   rule could never match and TickTick squatted on a workspace. `common` now
   matches on `class` as well.
+* sway's PATH at login has no `~/.local/bin` — that comes from the shell
+  profile, and nothing in a sway startup is a login shell. `zen` lives only
+  there, so it alone failed to start. `sway-layout` prepends it, and now checks
+  a command exists before launching, so a missing binary says so instead of
+  silently burning the 30s window timeout.
+
+**Zen Spaces.** Zen has no command-line flag for Spaces; the Space it opens on
+is whatever `zen.workspaces.active` holds at startup (`ZenSpaceManager.mjs`:
+`#activeWorkspace ||= getStringPref("zen.workspaces.active", "")`).
+`scripts/zen-space` sets that pref and then execs zen:
+
+```
+2   zen-space CareerPlug
+```
+
+It resolves the name to a UUID out of `zen-sessions.jsonlz4`, so recreating the
+Space in Zen doesn't break the layout. It writes `prefs.js` immediately before
+launch rather than using `user.js`, because `user.js` is reapplied on every
+launch from every session and would pin the browser to one Space permanently.
+It refuses to touch prefs while Zen is running — a live Zen rewrites the whole
+file on exit and would discard the change.
 
 **Installing a session** needs root, since GDM only reads
 `/usr/share/wayland-sessions`:

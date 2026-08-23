@@ -100,6 +100,7 @@ if [ "$OS" = linux ]; then
   # /usr/local/bin, so it shadows nothing and needs no rehash.
   mkdir -p ~/.local/bin
   link "$DOTFILES_DIR/scripts/sway-layout" ~/.local/bin/sway-layout
+  link "$DOTFILES_DIR/scripts/zen-space" ~/.local/bin/zen-space
 
   # The login-screen half (the session launcher in /opt and the .desktop entries
   # in /usr/share/wayland-sessions) needs root and is NOT done here — run
