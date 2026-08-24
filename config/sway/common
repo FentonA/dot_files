@@ -26,6 +26,19 @@ output * bg /usr/share/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
 ### Input configuration
 input * xkb_options ctrl:swapcaps
 
+# Touchpad (FTCS1041 — the laptop's built-in pad; external mice are unaffected).
+# tap: a single one-finger tap is a left click, two fingers right, three middle.
+# drag: after a tap, tap-and-hold then slide selects/drags — the double-tap-drag
+# gesture. It only works while `tap` is enabled, which is why both are here.
+# drag_lock off so the button releases the moment you lift, instead of staying
+# held until you tap again (libinput's sticky default, which leaves selections
+# running away from you).
+input type:touchpad {
+    tap enabled
+    drag enabled
+    drag_lock disabled
+}
+
 ### Key bindings
 
 # Basics
