@@ -1,0 +1,35 @@
+# Sway(fonn) — startup layout
+#
+# One line per app:   <workspace number>   <command>
+# Blank lines and #-comments are ignored. Everything after the first token is
+# the command, run through a shell, so flags / pipes / $HOME all work.
+#
+# Use `-` instead of a number for an app that should NOT own a screen. Those are
+# started last, after the numbered screens are placed, so a window that is on
+# its way to the scratchpad can't be mistaken for a screen's app arriving.
+#
+# Screens open in order. sway-layout switches to the workspace BEFORE launching
+# and waits for the window to appear before moving on — that is what puts each
+# app on the right screen without identifying windows by app_id or class, which
+# is brittle here: Slack and Obsidian are XWayland, Obsidian and Slack are
+# flatpaks, and ghostty refuses to start if --class isn't reverse-DNS.
+#
+# A workspace that already has a window on it is left alone, so re-running this
+# mid-session won't open a second copy of anything.
+
+1   ghostty
+# zen-space sets Zen's `zen.workspaces.active` pref to the named Space's UUID
+# just before launching, because Zen has no command-line flag for Spaces. The
+# Space is looked up by name, so recreating it in Zen won't break this line.
+2   zen-space CareerPlug
+
+# The `slack` on PATH is the snap (/snap/bin/slack). It starts a process but
+# never maps a window on this machine — that is why `exec slack` in the old
+# config never actually gave you Slack. The flatpak build works, so use it.
+3   flatpak run com.slack.Slack
+
+4   flatpak run md.obsidian.Obsidian
+
+# Scratchpad apps — no screen of their own. Mod+minus summons the last one.
+-   thunderbird
+-   ticktick

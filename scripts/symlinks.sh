@@ -75,14 +75,38 @@ link "$DOTFILES_DIR/tmuxinator" ~/.config/tmuxinator
 # ── anki card templates (see anki-templates/README.md) ────────────────────────
 link "$DOTFILES_DIR/anki-templates" ~/anki-templates
 
+# ── sway startup layouts ──────────────────────────────────────────────────────
+# The layout *files* are linked on every OS (harmless, and keeps the repo the
+# single source of truth); the script itself only goes on PATH where sway can
+# actually run it.
+link "$DOTFILES_DIR/layouts" ~/.config/sway-layouts
+
 # ── linux desktop ─────────────────────────────────────────────────────────────
 # sway/waybar/wofi/dunst are Wayland-only; none of it means anything on macOS.
 if [ "$OS" = linux ]; then
   link "$DOTFILES_DIR/dunst/dunstrc" ~/.config/dunst/dunstrc
+  # `common` holds everything the session profiles share; `config` and each
+  # profiles/*.config include it. Sway resolves a relative `include` against the
+  # including file's own directory, so all three have to sit together under
+  # ~/.config/sway for `include common` / `include ../common` to resolve.
+  link "$DOTFILES_DIR/config/sway/common" ~/.config/sway/common
   link "$DOTFILES_DIR/config/sway/config" ~/.config/sway/config
+  link "$DOTFILES_DIR/config/sway/profiles" ~/.config/sway/profiles
   link "$DOTFILES_DIR/config/waybar/config" ~/.config/waybar/config
   link "$DOTFILES_DIR/config/waybar/style.css" ~/.config/waybar/style.css
   link "$DOTFILES_DIR/config/wofi/style.css" ~/.config/wofi/style.css
+
+  # sway-layout onto PATH. ~/.local/bin is already there ahead of
+  # /usr/local/bin, so it shadows nothing and needs no rehash.
+  mkdir -p ~/.local/bin
+  link "$DOTFILES_DIR/scripts/sway-layout" ~/.local/bin/sway-layout
+  link "$DOTFILES_DIR/scripts/zen-space" ~/.local/bin/zen-space
+  link "$DOTFILES_DIR/scripts/vpn-connect" ~/.local/bin/vpn-connect
+  link "$DOTFILES_DIR/scripts/sway-copy-selection" ~/.local/bin/sway-copy-selection
+
+  # The login-screen half (the session launcher in /opt and the .desktop entries
+  # in /usr/share/wayland-sessions) needs root and is NOT done here — run
+  # scripts/install-sway-sessions.sh with sudo for that.
 else
   echo "  skip (linux only): dunst, sway, waybar, wofi"
 fi

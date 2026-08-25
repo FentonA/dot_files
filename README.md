@@ -23,13 +23,47 @@ bash ~/dot_files/scripts/symlinks.sh
 
 | | apt | pacman | brew |
 |---|---|---|---|
-| CLI packages, GUI apps, gh, kubectl, rust, asdf | ✅ | ✅ | ✅ |
+| CLI packages, GUI apps, gh, kubectl, rust, asdf, tmuxinator | ✅ | ✅ | ✅ |
 | Symlinks | ✅ | ✅ | ✅ (skips sway/waybar/wofi/dunst) |
 | keyboard.sh, autostart.sh, systemd, swapfile, sysctl | ✅ | ✅ | ⏭️ skipped |
+| gh-notify cron | ✅ | ✅ | ⏭️ skipped |
+
+`bootstrap.sh` ends with a verify pass that checks for the *commands* and the
+symlinks, not the installer exit codes, and prints `SOME TOOLS MISSING` if any
+are absent. Several things here can install "successfully" and still leave you
+without a working binary — see below.
 
 On macOS, remap Caps Lock by hand in **System Settings → Keyboard → Modifier
 Keys**, and set autostart via **Login Items**. There's no xkb and no systemd to
 script against.
+
+The gh-notify cron is Linux-only for the same reason: `scripts/gh-notify.sh`
+dispatches through `notify-send` and falls back to a `/run/user/$(id -u)` D-Bus
+path, neither of which exists on macOS. It used to be installed unconditionally,
+which bought a job that failed every five minutes. (macOS cron also needs Full
+Disk Access on `/usr/sbin/cron` before it runs at all.)
+
+## Installs that lie
+
+Three things here report success and still leave you without a command. The
+verify pass at the end of `bootstrap.sh` exists to catch exactly these:
+
+* **`libpq` is keg-only.** Homebrew installs `psql`/`pg_dump`/`pg_restore` and
+  deliberately doesn't link them, because they'd collide with the full
+  `postgresql` formula. `fish/config.fish` puts
+  `$HOMEBREW_PREFIX/opt/libpq/bin` on PATH — below the `brew shellenv` block,
+  since that's what sets `$HOMEBREW_PREFIX`. Keep the ordering.
+* **tmuxinator is in no package list.** brew has a formula; apt and pacman
+  don't, so it forks to `gem install`. Without it, `symlinks.sh` happily links
+  `~/.config/tmuxinator` into this repo and every `tmuxinator start` is a
+  command-not-found.
+* **The Docker cask was renamed** `docker` → `docker-desktop`; `docker` is now
+  the CLI-only formula. bootstrap tries the new name first and falls back. It no
+  longer pipes the failure to `/dev/null` — a silent skip reads as "installed."
+
+**asdf installs with no plugins.** There is no `.tool-versions` in this repo, so
+after bootstrap you have asdf and empty shims. `asdf plugin add ruby` (etc.) per
+machine. On Linux apt handed you a system ruby; brew does not.
 
 ## Conventions
 
@@ -76,7 +110,94 @@ nvim/                 LazyVim config
 tmuxinator/           per-project tmux sessions — clickk, career-plug, swish
 anki-templates/       Anki code-drill card templates (see its own README)
 config/               sway, waybar, wofi (linux only)
+config/sway/common    every sway session shares this; launches no apps
+config/sway/profiles/ one *.config per login session (fonn)
+layouts/              *.layout — which app opens on which workspace
+scripts/sway-layout   applies a layout at sway startup
 ```
+
+## Sway session profiles
+
+The login screen offers more than one sway session. Each is a `.desktop` entry
+in `/usr/share/wayland-sessions` pointing at `sway-profile-session <name>`,
+which starts the usual Sway 1.11 stack with a profile-specific config:
+
+```
+config/sway/common              bindings, modes, colors, rules, daemons — no apps
+config/sway/config              the plain "Sway" session: common + all apps
+config/sway/profiles/fonn.config  "Sway(fonn)": common + a four-screen layout
+```
+
+Shared changes go in `common` and every session picks them up.
+
+**Screens.** `Sway(fonn)` opens one app per workspace, defined in
+`layouts/fonn.layout` — `<workspace> <command>`, one per line, `-` for an app
+that should live in the scratchpad instead of owning a screen. Edit that file
+and log out; no sway reload needed, nothing else to touch.
+
+`scripts/sway-layout` switches to the workspace *before* launching each app and
+waits for its window, rather than launching everything and matching windows
+afterwards. Matching is unreliable here: Slack and Obsidian are XWayland (class,
+no app_id), and ghostty silently refuses to start unless `--class` is a valid
+reverse-DNS GTK application id.
+
+Two gotchas found the hard way, both already handled:
+
+* The **snap** Slack (`/snap/bin/slack`, what `slack` on PATH resolves to)
+  starts a process but never maps a window. The layout uses
+  `flatpak run com.slack.Slack`.
+* TickTick is XWayland, so the old `for_window [app_id="Ticktick"]` scratchpad
+  rule could never match and TickTick squatted on a workspace. `common` now
+  matches on `class` as well.
+* sway's PATH at login has no `~/.local/bin` — that comes from the shell
+  profile, and nothing in a sway startup is a login shell. `zen` lives only
+  there, so it alone failed to start. `sway-layout` prepends it, and now checks
+  a command exists before launching, so a missing binary says so instead of
+  silently burning the 30s window timeout.
+
+**Zen Spaces.** Zen has no command-line flag for Spaces; the Space it opens on
+is whatever `zen.workspaces.active` holds at startup (`ZenSpaceManager.mjs`:
+`#activeWorkspace ||= getStringPref("zen.workspaces.active", "")`).
+`scripts/zen-space` sets that pref and then execs zen:
+
+```
+2   zen-space CareerPlug
+```
+
+It resolves the name to a UUID out of `zen-sessions.jsonlz4`, so recreating the
+Space in Zen doesn't break the layout. It writes `prefs.js` immediately before
+launch rather than using `user.js`, because `user.js` is reapplied on every
+launch from every session and would pin the browser to one Space permanently.
+It refuses to touch prefs while Zen is running — a live Zen rewrites the whole
+file on exit and would discard the change.
+
+**VPN.** `Sway(fonn)` brings up NordVPN in Seattle, from `fonn.config`:
+
+```
+exec $HOME/.local/bin/vpn-connect United_States Seattle
+```
+
+`scripts/vpn-connect` is idempotent — a no-op if the tunnel is already up in
+that city, and it moves the tunnel if it is up somewhere else. It waits for DNS
+before connecting, because sway's `exec` fires before NetworkManager is
+necessarily usable and a bare `nordvpn connect` loses that race at login and
+fails silently, which leaves you unprotected rather than obviously broken. Logs
+to `$XDG_RUNTIME_DIR/vpn-connect.log`.
+
+It lives in `fonn.config` rather than `fonn.layout` because the layout file is
+about which app owns which screen, and this opens no window. The plain `Sway`
+session does not touch the VPN.
+
+**Installing a session** needs root, since GDM only reads
+`/usr/share/wayland-sessions`:
+
+```sh
+sudo bash scripts/install-sway-sessions.sh
+```
+
+Re-run it after editing `sway-profile-session` or any `scripts/sway-*.desktop` —
+those are copied, not symlinked, because GDM runs as another user and won't
+follow a link into `$HOME`.
 
 ## Not tracked here, on purpose
 

@@ -89,9 +89,32 @@ brew)
     nginx jq \
     awscli
   # Docker Desktop is a cask, not the `docker` formula (that's just the CLI).
-  brew install --cask docker 2>/dev/null || true
+  # Homebrew renamed that cask `docker` -> `docker-desktop`; try the new name
+  # first. Don't blanket-swallow the error — a silent skip here reads as
+  # "docker installed" and you only find out when a compose file won't run.
+  if ! command -v docker &>/dev/null && [ ! -d /Applications/Docker.app ]; then
+    brew install --cask docker-desktop ||
+      brew install --cask docker ||
+      echo "  WARN: Docker Desktop cask failed; install it by hand"
+  fi
   ;;
 esac
+
+# ── tmuxinator ────────────────────────────────────────────────────────────────
+# Not in any package list above: brew has a formula, apt/pacman don't, so this
+# has to fork. Without it symlinks.sh links ~/.config/tmuxinator into the repo
+# and `tmuxinator start clickk` is a command-not-found.
+echo "===> Installing tmuxinator..."
+if ! command -v tmuxinator &>/dev/null; then
+  if [ "$PKG_MANAGER" = brew ]; then
+    brew install tmuxinator
+  elif command -v gem &>/dev/null; then
+    gem install --user-install tmuxinator ||
+      echo "  WARN: gem install tmuxinator failed; install it by hand"
+  else
+    echo "  WARN: no gem on PATH; install tmuxinator by hand"
+  fi
+fi
 
 # ── GUI apps ──────────────────────────────────────────────────────────────────
 echo "===> Installing GUI apps..."
@@ -218,19 +241,24 @@ if [ "$OS" = linux ]; then
   # Redis forks to snapshot; without this it fails under memory pressure.
   grep -q 'vm.overcommit_memory' /etc/sysctl.conf ||
     echo 'vm.overcommit_memory = 1' | sudo tee -a /etc/sysctl.conf
+
+  # ── GitHub notification cron ───────────────────────────────────────────────
+  # Linux-only, and it lives inside this guard for a reason: gh-notify.sh
+  # dispatches via notify-send and defaults DBUS_SESSION_BUS_ADDRESS to
+  # unix:path=/run/user/$(id -u). Neither exists on macOS, so installing this
+  # there bought a job that failed every five minutes forever. (macOS also
+  # needs Full Disk Access on /usr/sbin/cron before cron runs at all.)
+  # $DOTFILES_DIR, not a hardcoded /home/$USER.
+  CRON_JOB="*/5 * * * * $DOTFILES_DIR/scripts/gh-notify.sh"
+  crontab -l 2>/dev/null | grep -q 'gh-notify' ||
+    (
+      crontab -l 2>/dev/null
+      echo "$CRON_JOB"
+    ) | crontab -
 else
-  echo "===> Skipping linux-only setup (keyboard, autostart, systemd, swap, sysctl)"
+  echo "===> Skipping linux-only setup (keyboard, autostart, systemd, swap, sysctl, gh-notify cron)"
   echo "     macOS: remap Caps Lock in System Settings > Keyboard > Modifier Keys"
 fi
-
-# ── GitHub notification cron ──────────────────────────────────────────────────
-# $DOTFILES_DIR, not a hardcoded /home/$USER — the repo lives under /Users on mac.
-CRON_JOB="*/5 * * * * $DOTFILES_DIR/scripts/gh-notify.sh"
-crontab -l 2>/dev/null | grep -q 'gh-notify' ||
-  (
-    crontab -l 2>/dev/null
-    echo "$CRON_JOB"
-  ) | crontab -
 
 # ── Fish as default shell ─────────────────────────────────────────────────────
 echo "===> Setting fish as default shell..."
@@ -240,9 +268,62 @@ if [ -n "$FISH_PATH" ]; then
   [ "$SHELL" = "$FISH_PATH" ] || chsh -s "$FISH_PATH"
 fi
 
+# ── Verify ────────────────────────────────────────────────────────────────────
+# Several installs above can "succeed" and still leave you without a working
+# command: keg-only formulae aren't linked, cask installs put an .app on disk
+# but no binary on PATH, and gem/cargo bin dirs only join PATH once fish starts.
+# So check for the *commands*, not the install exit codes. Runs under `set -e`,
+# hence the `|| true` — a missing tool should print and continue, not abort.
+echo ""
+echo "===> Verifying..."
+VERIFY_FAILED=0
+check() {
+  # $1 = command to look for, $2 = how to get it if missing
+  if command -v "$1" &>/dev/null; then
+    printf '  ok      %s\n' "$1"
+  else
+    printf '  MISSING %-14s -> %s\n' "$1" "$2"
+    VERIFY_FAILED=1
+  fi
+}
+
+check git "package manager"
+check fish "package manager"
+check tmux "package manager"
+check nvim "package manager"
+check rg "package manager"
+check jq "package manager"
+check gh "see GitHub CLI section above"
+check kubectl "see kubectl section above"
+check tmuxinator "brew install tmuxinator / gem install tmuxinator"
+check aws "package manager"
+check cargo "open a new shell — fish/config.fish adds ~/.cargo/bin"
+if [ "$OS" = mac ]; then
+  check ghostty "brew install --cask ghostty"
+  check docker "brew install --cask docker-desktop"
+  # psql comes from keg-only libpq, which fish/config.fish adds to PATH. It
+  # will read MISSING in *this* bash run and be fine in a new fish shell.
+  check psql "open a new fish shell (keg-only libpq PATH)"
+fi
+
+# Symlinks are the actual point of the repo — a broken one is silent otherwise.
+for l in ~/.config/fish/config.fish ~/.config/nvim ~/.config/ghostty/config \
+  ~/.config/tmuxinator ~/.tmux.conf; do
+  if [ -e "$l" ]; then
+    printf '  ok      %s\n' "$l"
+  else
+    printf '  MISSING %s -> rerun scripts/symlinks.sh\n' "$l"
+    VERIFY_FAILED=1
+  fi
+done
+
 echo ""
 echo "╔══════════════════════════════════════╗"
-echo "║     Bootstrap complete!              ║"
+if [ "$VERIFY_FAILED" = 0 ]; then
+  echo "║     Bootstrap complete!              ║"
+else
+  echo "║  Bootstrap done — SOME TOOLS MISSING ║"
+fi
 echo "╚══════════════════════════════════════╝"
 echo ""
 echo "  Next steps:"

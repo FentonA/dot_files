@@ -20,6 +20,15 @@ for brew_prefix in /opt/homebrew /usr/local
     end
 end
 
+# libpq is keg-only: brew installs psql/pg_dump/pg_restore but deliberately
+# does NOT link them into the prefix, because they'd collide with the full
+# postgresql formula. So `brew install libpq` "succeeds" and psql is still a
+# command-not-found until this is on PATH. $HOMEBREW_PREFIX is set by the
+# shellenv above, so this has to stay below it.
+if set -q HOMEBREW_PREFIX; and test -d $HOMEBREW_PREFIX/opt/libpq/bin
+    fish_add_path -p $HOMEBREW_PREFIX/opt/libpq/bin
+end
+
 # ── version managers ──────────────────────────────────────────────────────────
 if test -d $HOME/.rbenv
     fish_add_path -p $HOME/.rbenv/bin

@@ -1,0 +1,201 @@
+#!/usr/bin/env python3
+"""zen-space — launch Zen Browser with a given Space active.
+
+    zen-space CareerPlug [extra zen args...]
+
+Zen has no command-line flag for Spaces. What it does have (browser/modules/zen/
+ZenSpaceManager.mjs) is:
+
+    this.#activeWorkspace ||= Services.prefs.getStringPref("zen.workspaces.active", "")
+
+so the Space it opens on is whatever that pref holds at startup. This sets the
+pref to the named Space's UUID and then execs zen.
+
+Why not user.js, the usual "apply this pref at every startup" mechanism: user.js
+is reapplied on *every* launch of that profile, from any session, and can't be
+overridden for the rest of the session. That would pin the browser to CareerPlug
+everywhere, forever. Writing prefs.js immediately before launch instead scopes
+the choice to this one launch — switch Spaces freely afterwards and Zen
+remembers as usual, until the next time this script starts it.
+
+Looks the Space up by NAME rather than hardcoding a UUID, so deleting and
+recreating the Space in Zen doesn't silently break the layout.
+"""
+
+import configparser
+import json
+import os
+import sys
+
+ZEN_ROOT = os.path.expanduser("~/.zen")
+PREF = "zen.workspaces.active"
+
+
+def die(msg, code=1):
+    print("zen-space: %s" % msg, file=sys.stderr)
+    sys.exit(code)
+
+
+def lz4_decompress(src):
+    """Decode a raw LZ4 block. Inlined because python3-lz4 isn't a dependency
+    we want to add to a dotfiles bootstrap for one file read."""
+    out = bytearray()
+    pos, n = 0, len(src)
+    while pos < n:
+        token = src[pos]; pos += 1
+        lit = token >> 4
+        if lit == 15:
+            while True:
+                b = src[pos]; pos += 1; lit += b
+                if b != 255:
+                    break
+        out += src[pos:pos + lit]; pos += lit
+        if pos >= n:
+            break
+        offset = src[pos] | (src[pos + 1] << 8); pos += 2
+        if offset == 0:
+            break
+        mlen = token & 0xF
+        if mlen == 15:
+            while True:
+                b = src[pos]; pos += 1; mlen += b
+                if b != 255:
+                    break
+        mlen += 4
+        start = len(out) - offset
+        for i in range(mlen):
+            out.append(out[start + i])
+    return bytes(out)
+
+
+def read_mozlz4(path):
+    with open(path, "rb") as fh:
+        data = fh.read()
+    if data[:8] != b"mozLz40\0":
+        raise ValueError("not a mozlz4 file")
+    return lz4_decompress(data[12:])
+
+
+def default_profile():
+    """The profile Zen actually launches. An [InstallXXXX] section's Default=
+    is what a real launch honours; a [ProfileN] with Default=1 is the older
+    fallback and can point somewhere else entirely — this profiles.ini has both,
+    disagreeing."""
+    ini = os.path.join(ZEN_ROOT, "profiles.ini")
+    if not os.path.exists(ini):
+        die("no %s" % ini)
+    cp = configparser.ConfigParser()
+    cp.optionxform = str
+    cp.read(ini)
+
+    for section in cp.sections():
+        if section.startswith("Install") and cp.has_option(section, "Default"):
+            path = cp.get(section, "Default")
+            full = path if os.path.isabs(path) else os.path.join(ZEN_ROOT, path)
+            if os.path.isdir(full):
+                return full
+
+    for section in cp.sections():
+        if section.startswith("Profile") and cp.get(section, "Default", fallback="") == "1":
+            path = cp.get(section, "Path")
+            rel = cp.get(section, "IsRelative", fallback="1") == "1"
+            full = os.path.join(ZEN_ROOT, path) if rel else path
+            if os.path.isdir(full):
+                return full
+    die("could not determine the default Zen profile from profiles.ini")
+
+
+def find_space(profile, name):
+    """Return (uuid, actual_name) for the Space called `name`, case-insensitively."""
+    sessions = os.path.join(profile, "zen-sessions.jsonlz4")
+    if not os.path.exists(sessions):
+        return None, None
+    try:
+        data = json.loads(read_mozlz4(sessions).decode("utf-8", "replace"))
+    except Exception as exc:
+        print("zen-space: could not read %s (%s)" % (sessions, exc), file=sys.stderr)
+        return None, None
+    spaces = data.get("spaces") or []
+    for sp in spaces:
+        if str(sp.get("name", "")).strip().lower() == name.strip().lower():
+            return sp.get("uuid"), sp.get("name")
+    print("zen-space: no Space named %r. Known: %s"
+          % (name, ", ".join(repr(s.get("name")) for s in spaces)), file=sys.stderr)
+    return None, None
+
+
+def set_pref(profile, uuid):
+    """Rewrite the pref in prefs.js, atomically.
+
+    Only safe while Zen is closed: a running Zen holds prefs.js in memory and
+    rewrites the whole file on exit, silently discarding anything changed
+    underneath it. The caller checks for that."""
+    prefs = os.path.join(profile, "prefs.js")
+    line = 'user_pref("%s", "%s");\n' % (PREF, uuid)
+    try:
+        with open(prefs, encoding="utf-8") as fh:
+            lines = fh.readlines()
+    except FileNotFoundError:
+        lines = []
+
+    out, replaced = [], False
+    for cur in lines:
+        if cur.startswith('user_pref("%s"' % PREF):
+            if not replaced:
+                out.append(line); replaced = True
+        else:
+            out.append(cur)
+    if not replaced:
+        out.append(line)
+
+    tmp = prefs + ".zen-space.tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.writelines(out)
+    os.replace(tmp, prefs)
+
+
+def zen_running():
+    """True if a real Zen process is alive.
+
+    Deliberately resolves /proc/<pid>/exe rather than matching command lines:
+    `pgrep -f tarball-installations/zen/zen` also matches any shell whose own
+    argv happens to contain that path, which made this return True while Zen was
+    definitively closed."""
+    me = os.getpid()
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit() or int(entry) == me:
+            continue
+        try:
+            exe = os.readlink("/proc/%s/exe" % entry)
+        except OSError:
+            continue
+        if os.path.basename(exe) == "zen":
+            return True
+    return False
+
+
+def main():
+    if len(sys.argv) < 2:
+        die("usage: zen-space <space name> [zen args...]")
+    name, rest = sys.argv[1], sys.argv[2:]
+
+    profile = default_profile()
+
+    if zen_running():
+        # Zen is already up; the pref would be overwritten on its exit and the
+        # new invocation just hands the args to the running instance anyway.
+        print("zen-space: Zen is already running — not changing the Space",
+              file=sys.stderr)
+    else:
+        uuid, actual = find_space(profile, name)
+        if uuid:
+            set_pref(profile, uuid)
+            print("zen-space: opening on Space %r %s" % (actual, uuid))
+        # If the Space can't be resolved, fall through and start Zen normally
+        # rather than leaving the screen empty.
+
+    os.execvp("zen", ["zen"] + rest)
+
+
+if __name__ == "__main__":
+    main()
