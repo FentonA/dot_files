@@ -37,7 +37,31 @@ input type:touchpad {
     tap enabled
     drag enabled
     drag_lock disabled
+
+    # macOS-style clicking. clickfinger throws away the bottom-corner button
+    # zones entirely: a physical press is left-click no matter where on the pad
+    # you press it, and a press with two fingers down is a right-click. That is
+    # how a Mac trackpad behaves. The default, button_areas, instead carves the
+    # bottom edge into left/right halves, so right-click means "press the
+    # bottom-right corner" and a two-finger press near the top does nothing.
+    click_method clickfinger
 }
+
+# Two fingers to right-click, three to copy.
+#
+# The two-finger part needs no binding: tap_button_map defaults to `lrm`, so
+# with tap on it is already one finger = left, two = right, three = middle.
+# clickfinger above extends the same idea to physical presses.
+#
+# Three-finger copy is NOT something macOS actually does — there is no
+# three-finger copy on a Mac (three fingers there is Mission Control, or drag
+# under Accessibility). It is a local invention, so it needs a binding.
+#
+# It is a hold rather than a tap because sway only knows three gestures — hold,
+# swipe and pinch — and tap is not one of them. A three-finger tap is hardwired
+# to middle-click by tap_button_map and cannot be redirected to a command. So:
+# highlight text, then rest three fingers on the pad.
+bindgesture hold:3 exec $HOME/.local/bin/sway-copy-selection
 
 ### Key bindings
 

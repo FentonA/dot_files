@@ -102,6 +102,7 @@ if [ "$OS" = linux ]; then
   link "$DOTFILES_DIR/scripts/sway-layout" ~/.local/bin/sway-layout
   link "$DOTFILES_DIR/scripts/zen-space" ~/.local/bin/zen-space
   link "$DOTFILES_DIR/scripts/vpn-connect" ~/.local/bin/vpn-connect
+  link "$DOTFILES_DIR/scripts/sway-copy-selection" ~/.local/bin/sway-copy-selection
 
   # The login-screen half (the session launcher in /opt and the .desktop entries
   # in /usr/share/wayland-sessions) needs root and is NOT done here — run

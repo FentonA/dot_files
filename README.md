@@ -23,13 +23,47 @@ bash ~/dot_files/scripts/symlinks.sh
 
 | | apt | pacman | brew |
 |---|---|---|---|
-| CLI packages, GUI apps, gh, kubectl, rust, asdf | ✅ | ✅ | ✅ |
+| CLI packages, GUI apps, gh, kubectl, rust, asdf, tmuxinator | ✅ | ✅ | ✅ |
 | Symlinks | ✅ | ✅ | ✅ (skips sway/waybar/wofi/dunst) |
 | keyboard.sh, autostart.sh, systemd, swapfile, sysctl | ✅ | ✅ | ⏭️ skipped |
+| gh-notify cron | ✅ | ✅ | ⏭️ skipped |
+
+`bootstrap.sh` ends with a verify pass that checks for the *commands* and the
+symlinks, not the installer exit codes, and prints `SOME TOOLS MISSING` if any
+are absent. Several things here can install "successfully" and still leave you
+without a working binary — see below.
 
 On macOS, remap Caps Lock by hand in **System Settings → Keyboard → Modifier
 Keys**, and set autostart via **Login Items**. There's no xkb and no systemd to
 script against.
+
+The gh-notify cron is Linux-only for the same reason: `scripts/gh-notify.sh`
+dispatches through `notify-send` and falls back to a `/run/user/$(id -u)` D-Bus
+path, neither of which exists on macOS. It used to be installed unconditionally,
+which bought a job that failed every five minutes. (macOS cron also needs Full
+Disk Access on `/usr/sbin/cron` before it runs at all.)
+
+## Installs that lie
+
+Three things here report success and still leave you without a command. The
+verify pass at the end of `bootstrap.sh` exists to catch exactly these:
+
+* **`libpq` is keg-only.** Homebrew installs `psql`/`pg_dump`/`pg_restore` and
+  deliberately doesn't link them, because they'd collide with the full
+  `postgresql` formula. `fish/config.fish` puts
+  `$HOMEBREW_PREFIX/opt/libpq/bin` on PATH — below the `brew shellenv` block,
+  since that's what sets `$HOMEBREW_PREFIX`. Keep the ordering.
+* **tmuxinator is in no package list.** brew has a formula; apt and pacman
+  don't, so it forks to `gem install`. Without it, `symlinks.sh` happily links
+  `~/.config/tmuxinator` into this repo and every `tmuxinator start` is a
+  command-not-found.
+* **The Docker cask was renamed** `docker` → `docker-desktop`; `docker` is now
+  the CLI-only formula. bootstrap tries the new name first and falls back. It no
+  longer pipes the failure to `/dev/null` — a silent skip reads as "installed."
+
+**asdf installs with no plugins.** There is no `.tool-versions` in this repo, so
+after bootstrap you have asdf and empty shims. `asdf plugin add ruby` (etc.) per
+machine. On Linux apt handed you a system ruby; brew does not.
 
 ## Conventions
 

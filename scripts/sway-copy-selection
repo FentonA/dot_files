@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# sway-copy-selection — promote the PRIMARY selection into the clipboard.
+#
+# Bound to a three-finger touchpad hold in config/sway/common. Highlight text
+# anywhere, rest three fingers, and it lands in the clipboard ready to paste.
+#
+# Why not synthesize Ctrl+C? Two reasons:
+#
+#   * it would need wtype or ydotool, neither of which is installed here, and
+#   * Ctrl+C is not "copy" everywhere. In a terminal it is SIGINT, so a global
+#     three-finger copy would start killing jobs in ghostty.
+#
+# Reading PRIMARY sidesteps both. On Wayland, merely highlighting text puts it
+# in PRIMARY, so the selection is already sitting there — this just moves it
+# across to CLIPBOARD. It is app-agnostic and sends no keystrokes to anything.
+#
+# The --list-types guard matters: `wl-paste -p | wl-copy` on an empty PRIMARY
+# pipes nothing and wipes the clipboard you were about to paste from.
+
+set -uo pipefail
+
+wl-paste --primary --list-types >/dev/null 2>&1 || exit 0
+wl-paste --primary --no-newline | wl-copy
