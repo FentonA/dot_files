@@ -16,7 +16,7 @@
 #   are all VPN-gated. If something inexplicably hangs, check VPN first.
 
 name: swish
-root: ~/swish
+root: ~/
 tmux_options: -f ~/.config/tmux/.tmux.conf
 pre_window: tmux set-window-option -g main-pane-width 70%
 startup_window: props
@@ -26,7 +26,7 @@ windows:
   # Four pipelines live here: main props, fast props, leaders/h2h, alternates.
   # This is where most work happens.
   - props:
-      root: ~/swish/ds_props
+      root: ~/ds_props
       layout: main-vertical
       panes:
         - nvim .
@@ -37,7 +37,7 @@ windows:
 
   # ── ds_watcher: suspension monitoring ─────────────────────────────────────
   - watcher:
-      root: ~/swish/ds_watcher
+      root: ~/ds_watcher
       layout: main-vertical
       panes:
         - nvim .
@@ -48,7 +48,7 @@ windows:
   # MBF API + alternates writer. Single nvim so rust-analyzer sees the whole
   # workspace; per-crate nvim breaks cross-crate goto-definition.
   - omaha:
-      root: ~/swish/omaha
+      root: ~/omaha
       layout: main-vertical
       panes:
         - nvim .
@@ -61,7 +61,7 @@ windows:
   # ── bet-request + shared modules ──────────────────────────────────────────
   # Lower-traffic repos grouped into one window. Split out if one gets busy.
   - misc:
-      root: ~/swish
+      root: ~/
       layout: main-vertical
       panes:
         - nvim cross-sports-bet-request-py
@@ -73,7 +73,7 @@ windows:
   # ausw2.ds-fgen.* (feature-gen), ausw2.deng.* (sport DE repos).
   # Refresh kubeconfigs with: k8s-access kubeconfig   (needs VPN + Docker)
   - k8s:
-      root: ~/swish
+      root: ~/
       layout: main-horizontal
       panes:
         # Live pod watch. -w streams changes; drop it for a one-shot list.
@@ -94,7 +94,7 @@ windows:
   # ── aws ───────────────────────────────────────────────────────────────────
   # S3 for checkpoints, feature parquet, model artifacts. EKS for kubeconfigs.
   - aws:
-      root: ~/swish
+      root: ~/
       layout: main-vertical
       panes:
         # Sanity check first thing: aws sts get-caller-identity
@@ -107,7 +107,7 @@ windows:
   # dadbod-ui in nvim as primary; mycli/pgcli as the REPL fallback.
   # DBeaver stays installed for connection-profile sprawl across sport hosts.
   - db:
-      root: ~/swish
+      root: ~/
       layout: main-vertical
       panes:
         # :DBUI  — connections defined in your dadbod config
@@ -120,7 +120,7 @@ windows:
   # Deploys run through GitHub Actions → ArgoCD.
   # ArgoCD UI: https://swish-argocd.swish-dso.pro.swishaws.engineering/applications
   - ci:
-      root: ~/swish/ds_props
+      root: ~/ds_props
       layout: main-vertical
       panes:
         - nvim .github/workflows/
@@ -131,6 +131,6 @@ windows:
   # The confusion list. Names, acronyms, "what is outboxing", the stuff that's
   # obvious by month two and unrecoverable in week one.
   - notes:
-      root: ~/swish
+      root: ~/
       panes:
-        - nvim ~/swish/NOTES.md
+        - nvim ~/NOTES.md
