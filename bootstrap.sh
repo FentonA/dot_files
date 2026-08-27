@@ -256,8 +256,12 @@ if [ "$OS" = linux ]; then
       echo "$CRON_JOB"
     ) | crontab -
 else
-  echo "===> Skipping linux-only setup (keyboard, autostart, systemd, swap, sysctl, gh-notify cron)"
-  echo "     macOS: remap Caps Lock in System Settings > Keyboard > Modifier Keys"
+  echo "===> Skipping linux-only setup (autostart, systemd, swap, sysctl, gh-notify cron)"
+
+  # The keyboard swap is NOT skipped on macOS — it's the one piece of the Linux
+  # desktop config that has a real equivalent here. keyboard.sh is xkb and
+  # useless; keyboard-macos.sh does the same ctrl:swapcaps via hidutil.
+  bash "$DOTFILES_DIR/scripts/keyboard-macos.sh"
 fi
 
 # ── Fish as default shell ─────────────────────────────────────────────────────
