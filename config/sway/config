@@ -16,3 +16,4 @@ exec slack
 exec flatpak run com.discordapp.Discord
 exec thunderbird
 exec ticktick
+exec kanshi

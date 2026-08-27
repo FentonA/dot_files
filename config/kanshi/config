@@ -1,0 +1,8 @@
+profile docked {
+    output "Dell Inc. DELL U3225QE 9C78PJ4" mode 3840x2160@60Hz scale 1.25 position 0,0
+    output eDP-1 mode 2560x1600@240Hz scale 1.5 position 3072,0
+}
+
+profile undocked {
+    output eDP-1 mode 2560x1600@240Hz scale 1.5 position 0,0
+}
