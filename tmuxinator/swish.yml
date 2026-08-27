@@ -1,100 +1,136 @@
 # ~/.config/tmuxinator/swish.yml
 #
-# SCAFFOLD — written before day one, so every path below is a guess.
+# Swish Analytics. Refactored from the day-one scaffold now that the repo
+# structure and workflow are known.
 #
-# Swish Analytics: python, rust, kafka, github actions. The window shape is real
-# (it mirrors how clickk.yml splits editor / watcher / infra), but the roots and
-# the commands marked TODO(day-one) are placeholders. This file is deliberately
-# runnable *today* against an empty ~/swish so you can attach and iterate from
-# inside the session instead of editing yaml blind.
+# What changed from the scaffold:
+#   - Repos are separate uv projects, not one monorepo. One nvim per repo group.
+#   - No local Kafka stack: Kafka is Confluent Cloud, reached over VPN.
+#   - No local infra to docker-compose. VPN is the "stack" step.
+#   - Added k8s window: kubectl/helm/argocd against EKS, namespace `deng`.
+#   - Added db window: dadbod-ui + mycli/pgcli.
+#   - Test loops are `uv run pytest`, not bare pytest.
 #
-# Day one, in rough order:
-#   1. mkdir -p ~/swish && clone the repos into it
-#   2. set each window's `root:` to the repo it belongs to (uncomment them)
-#   3. replace the TODO(day-one) pane commands with the real test/run commands
-#   4. delete any window that doesn't map to something real
-#
-# Why one nvim per language rather than per repo: if the rust side turns out to
-# be a single cargo workspace, one nvim per crate means one rust-analyzer per
-# crate and broken cross-crate goto-definition — the exact thing clickk.yml was
-# reorganized to fix. Start grouped; split only if the repos are genuinely
-# unrelated workspaces.
+# PREREQUISITE FOR ALMOST EVERYTHING: VPN connected.
+#   Nexus package installs, all databases, Redis, Kafka, and the K8s API
+#   are all VPN-gated. If something inexplicably hangs, check VPN first.
 
 name: swish
 root: ~/swish
 tmux_options: -f ~/.config/tmux/.tmux.conf
 pre_window: tmux set-window-option -g main-pane-width 70%
-startup_window: py
+startup_window: props
 
 windows:
-  # ── python ────────────────────────────────────────────────────────────────
-  # Point root at the python repo/subtree once you know it. Keeping nvim's cwd
-  # at the project root (not a package dir) is what lets pyright/ruff find
-  # pyproject.toml.
-  - py:
-      # root: ~/swish/<python-repo>
+  # ── ds_props: the main repo ───────────────────────────────────────────────
+  # Four pipelines live here: main props, fast props, leaders/h2h, alternates.
+  # This is where most work happens.
+  - props:
+      root: ~/swish/ds_props
       layout: main-vertical
       panes:
         - nvim .
-        # TODO(day-one): real test loop. Likely one of:
-        #   pytest --testmon -q          (needs pytest-testmon)
-        #   ptw -- -q                    (needs pytest-watch)
-        #   uv run pytest -q
-        - # test watcher
+        # Fast feedback loop. --testmon reruns only tests affected by changes.
+        - # uv run pytest test/unit -q
+        # Scratch: CLI runs, replay-event, ad-hoc queries
+        - # uv run cli --help
 
-  # ── rust ──────────────────────────────────────────────────────────────────
-  # `--poll` is in the clickk configs because watchers inside a bind-mounted
-  # container miss inotify events. Drop it if you end up running cargo on the
-  # host — polling burns CPU for no reason there.
-  - rs:
-      # root: ~/swish/<rust-repo>
+  # ── ds_watcher: suspension monitoring ─────────────────────────────────────
+  - watcher:
+      root: ~/swish/ds_watcher
       layout: main-vertical
       panes:
         - nvim .
-        # TODO(day-one): scope this to the crates you touch, e.g.
+        - # uv run pytest test/unit -q
+        - # uv run cli run-pregame-watcher
+
+  # ── omaha: the rust services ──────────────────────────────────────────────
+  # MBF API + alternates writer. Single nvim so rust-analyzer sees the whole
+  # workspace; per-crate nvim breaks cross-crate goto-definition.
+  - omaha:
+      root: ~/swish/omaha
+      layout: main-vertical
+      panes:
+        - nvim .
+        # Scope the watcher once you know the crate layout:
         #   cargo watch -x 'test -p <crate>' -w <crate>/src
-        # An unscoped watcher on a workspace rebuilds everything on every save
-        # and takes a file lock on target/, queueing every other watcher behind it.
-        - # cargo watch
+        - # cargo watch -x test
+        # Benchmarking pane: criterion baselines, flamegraph
+        - # cargo bench   /   cargo flamegraph --bin <bin>
 
-  # ── kafka ─────────────────────────────────────────────────────────────────
-  # Top pane for a long-lived consumer, bottom for one-off admin commands.
-  # kcat is the fastest thing to reach for; the JVM kafka-* CLIs are the
-  # fallback when you need consumer-group or ACL operations kcat can't do.
-  - kafka:
+  # ── bet-request + shared modules ──────────────────────────────────────────
+  # Lower-traffic repos grouped into one window. Split out if one gets busy.
+  - misc:
+      root: ~/swish
+      layout: main-vertical
+      panes:
+        - nvim cross-sports-bet-request-py
+        - # cd cross-sports-bet-request-py && uv run pytest -q
+        - # ds_functions / ds_constants / ds_lu_stat_type — read-mostly
+
+  # ── k8s: cluster ops ──────────────────────────────────────────────────────
+  # Namespace is `deng`. Clusters: ausw2.ds-main.* (props/sim/watcher/bet-request),
+  # ausw2.ds-fgen.* (feature-gen), ausw2.deng.* (sport DE repos).
+  # Refresh kubeconfigs with: k8s-access kubeconfig   (needs VPN + Docker)
+  - k8s:
+      root: ~/swish
       layout: main-horizontal
       panes:
-        # TODO(day-one): tail whatever topic you live in, e.g.
-        #   kcat -b $KAFKA_BROKERS -t <topic> -C -o end -J | jq .
-        - # consumer
-        # TODO(day-one): scratch pane for admin, e.g.
-        #   kcat -b $KAFKA_BROKERS -L                       (list topics)
-        #   kafka-consumer-groups --bootstrap-server $KAFKA_BROKERS --describe --group <g>
-        - # admin
+        # Live pod watch. -w streams changes; drop it for a one-shot list.
+        - # kubectl get pods -n deng -w
+        # Ops pane: describe, logs, exec
+        #   kubectl describe pod <pod> -n deng
+        #   kubectl logs -f <pod> -n deng
+        #   kubectl logs <pod> -n deng --previous     (crashed pod)
+        #   kubectl exec -it <pod> -n deng -- /bin/bash
+        - # ops
+        # Scaling pane — this is the 90-day deliverable, keep it visible:
+        #   kubectl get hpa -n deng
+        #   kubectl describe hpa <name> -n deng
+        #   kubectl top pods -n deng                  (needs metrics-server)
+        #   kubectl scale deployment <name> -n deng --replicas=N
+        - # scaling / hpa
 
-  # ── ci: github actions ────────────────────────────────────────────────────
-  # `gh run watch` needs a run id and exits when it finishes, so it's a manual
-  # command rather than a pane default. `gh run list` on attach is the useful
-  # part — you see red before you start editing.
+  # ── aws ───────────────────────────────────────────────────────────────────
+  # S3 for checkpoints, feature parquet, model artifacts. EKS for kubeconfigs.
+  - aws:
+      root: ~/swish
+      layout: main-vertical
+      panes:
+        # Sanity check first thing: aws sts get-caller-identity
+        - # aws sts get-caller-identity
+        # Checkpoint browsing — the replay superpower lives here:
+        #   aws s3 ls s3://swish-analytics-<sport>/ds_props/checkpoints/<env>/<event_id>/
+        - # s3
+
+  # ── db ────────────────────────────────────────────────────────────────────
+  # dadbod-ui in nvim as primary; mycli/pgcli as the REPL fallback.
+  # DBeaver stays installed for connection-profile sprawl across sport hosts.
+  - db:
+      root: ~/swish
+      layout: main-vertical
+      panes:
+        # :DBUI  — connections defined in your dadbod config
+        - nvim -c DBUI
+        # mycli -h <sport>.pro.primary.db.swish.engineering -u <user>
+        # pgcli for the AWS Postgres side
+        - # mycli / pgcli
+
+  # ── ci ────────────────────────────────────────────────────────────────────
+  # Deploys run through GitHub Actions → ArgoCD.
+  # ArgoCD UI: https://swish-argocd.swish-dso.pro.swishaws.engineering/applications
   - ci:
+      root: ~/swish/ds_props
       layout: main-vertical
       panes:
         - nvim .github/workflows/
         - gh run list --limit 15 || true
         - # gh run watch <id> --exit-status ; gh run view <id> --log-failed
 
-  # ── stack: local infra ────────────────────────────────────────────────────
-  # Kafka locally is almost always a compose file (broker + schema registry, or
-  # redpanda). Replace once you know which.
-  - stack:
-      layout: main-vertical
-      panes:
-        - # TODO(day-one): docker compose up  /  redpanda start
-        - # shell
-
   # ── notes ─────────────────────────────────────────────────────────────────
-  # Onboarding scratch: names, systems, acronyms, the stuff that's obvious by
-  # month two and unrecoverable in week one.
+  # The confusion list. Names, acronyms, "what is outboxing", the stuff that's
+  # obvious by month two and unrecoverable in week one.
   - notes:
+      root: ~/swish
       panes:
         - nvim ~/swish/NOTES.md
