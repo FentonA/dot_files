@@ -1,19 +1,41 @@
-# Sway — default session ("Sway", "Sway 1.11", "Sway (NVIDIA)")
+# Sway — default session ("Sway", "Sway 1.11", "Sway (Nvidia)")
 #
-# This is the everything-at-once desk you had before the profiles split: all the
-# shared config, plus every app launched onto whatever workspace it lands on.
-# Behaviour is unchanged from before — the bindings, colors and rules simply
-# live in `common` now so the other session profiles can share them.
+# This is the config every login-screen entry loads except Sway(fonn), and
+# "Sway (Nvidia)" — /usr/local/bin/sway-nvidia, which is plain `sway
+# --unsupported-gpu` with no -c — is the one that actually gets used, so treat
+# this as the Nvidia desk.
 #
-# For the one-app-per-workspace desk, see profiles/careerplug.config and pick
-# "Sway — CareerPlug" at the login screen.
+# Everything shared with the other sway sessions lives in `common` — bindings,
+# modes, colors, window rules, daemons. Edit that and every session picks it up.
+# Edit THIS file only for what should be true here and nowhere else.
+#
+# For the work desk, see profiles/fonn.config and pick "Sway(fonn)" at the login
+# screen.
 
 include common
 
-### Startup apps
-exec ghostty
-exec slack
-exec flatpak run com.discordapp.Discord
-exec thunderbird
-exec ticktick
+### Screens — 1 terminal · 2 zen · 3 discord+slack · 4 ticktick+spotify · 5 obsidian
+#
+# WHICH app goes on which screen is not written here — it lives in
+#   ~/.config/sway-layouts/default.layout   (-> dot_files/layouts/default.layout)
+# so the layout can change without touching sway config or reloading sway.
+exec $HOME/.local/bin/sway-layout default
+
+### VPN
+# Idempotent: does nothing if the tunnel is already up in Seattle, and moves it
+# if it is up somewhere else. It waits for DNS first — sway's exec fires before
+# NetworkManager is necessarily usable, and a bare `nordvpn connect` loses that
+# race at login and fails silently, leaving you unprotected.
+#
+# Not in default.layout because that file is about which app owns which screen,
+# and this opens no window.
+exec $HOME/.local/bin/vpn-connect United_States Seattle
+
+### Window rules
+# Thunderbird has no screen of its own here — Mod+minus summons it. TickTick
+# does have one (screen 4), which is why its scratchpad rule is not in `common`
+# any more but in the one profile that wants it, fonn.config.
+for_window [app_id="thunderbird"] move scratchpad
+
+### Daemons
 exec kanshi

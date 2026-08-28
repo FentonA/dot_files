@@ -111,6 +111,7 @@ tmuxinator/           per-project tmux sessions — clickk, career-plug, swish
 anki-templates/       Anki code-drill card templates (see its own README)
 config/               sway, waybar, wofi (linux only)
 config/sway/common    every sway session shares this; launches no apps
+config/sway/config    the default session, i.e. "Sway (Nvidia)" — 5 screens
 config/sway/profiles/ one *.config per login session (fonn)
 layouts/              *.layout — which app opens on which workspace
 scripts/sway-layout   applies a layout at sway startup
@@ -118,22 +119,40 @@ scripts/sway-layout   applies a layout at sway startup
 
 ## Sway session profiles
 
-The login screen offers more than one sway session. Each is a `.desktop` entry
-in `/usr/share/wayland-sessions` pointing at `sway-profile-session <name>`,
-which starts the usual Sway 1.11 stack with a profile-specific config:
+The login screen offers more than one sway session, all sharing one `common`:
 
 ```
-config/sway/common              bindings, modes, colors, rules, daemons — no apps
-config/sway/config              the plain "Sway" session: common + all apps
-config/sway/profiles/fonn.config  "Sway(fonn)": common + a four-screen layout
+config/sway/common                bindings, modes, colors, rules, daemons — no apps
+config/sway/config                "Sway", "Sway 1.11", "Sway (Nvidia)": five screens
+config/sway/profiles/fonn.config  "Sway(fonn)": four screens, one app each
 ```
 
 Shared changes go in `common` and every session picks them up.
 
-**Screens.** `Sway(fonn)` opens one app per workspace, defined in
-`layouts/fonn.layout` — `<workspace> <command>`, one per line, `-` for an app
-that should live in the scratchpad instead of owning a screen. Edit that file
-and log out; no sway reload needed, nothing else to touch.
+`Sway(fonn)` is a `.desktop` entry in `/usr/share/wayland-sessions` pointing at
+`sway-profile-session fonn`, which starts the Sway 1.11 stack with `-c` on that
+profile. `Sway (Nvidia)` takes no `-c` at all — `/usr/local/bin/sway-nvidia` is
+plain `sway --unsupported-gpu` — so it loads `config/sway/config`, the default.
+That is the session actually in daily use, which is why the five-screen desk
+lives in `config` rather than in a profile of its own: a profile would mean a
+new `.desktop`, another root install, and a different graphics stack.
+
+**Screens.** Both sessions place apps from a layout file — `<workspace>
+<command>`, one per line, `-` for an app that should live in the scratchpad
+instead of owning a screen. Edit the file and log out; no sway reload needed,
+nothing else to touch.
+
+```
+layouts/default.layout   1 ghostty · 2 zen · 3 discord+slack · 4 ticktick+spotify · 5 obsidian
+layouts/fonn.layout      1 ghostty · 2 zen(CareerPlug) · 3 slack · 4 obsidian
+```
+
+A workspace number may repeat, which is how screens 3 and 4 of the default desk
+come up split between two apps. They open left to right in file order, and
+`sway-layout` issues a `splith` first so they sit side by side rather than
+stacked — sway's `default_orientation auto` would otherwise decide that from the
+monitor's aspect ratio. Re-running mid-session is still safe: the Nth app on a
+screen is skipped once that screen holds N windows.
 
 `scripts/sway-layout` switches to the workspace *before* launching each app and
 waits for its window, rather than launching everything and matching windows
@@ -147,8 +166,11 @@ Two gotchas found the hard way, both already handled:
   starts a process but never maps a window. The layout uses
   `flatpak run com.slack.Slack`.
 * TickTick is XWayland, so the old `for_window [app_id="Ticktick"]` scratchpad
-  rule could never match and TickTick squatted on a workspace. `common` now
-  matches on `class` as well.
+  rule could never match and TickTick squatted on a workspace. Matching on
+  `class` is what works. That rule lives in `fonn.config`, not in `common`: the
+  default desk gives TickTick a screen, and a `move scratchpad` inherited from
+  `common` cannot be undone by the session that includes it. Same reason for
+  Thunderbird's rule, which each session declares for itself.
 * sway's PATH at login has no `~/.local/bin` — that comes from the shell
   profile, and nothing in a sway startup is a login shell. `zen` lives only
   there, so it alone failed to start. `sway-layout` prepends it, and now checks
@@ -171,7 +193,8 @@ launch from every session and would pin the browser to one Space permanently.
 It refuses to touch prefs while Zen is running — a live Zen rewrites the whole
 file on exit and would discard the change.
 
-**VPN.** `Sway(fonn)` brings up NordVPN in Seattle, from `fonn.config`:
+**VPN.** Both sessions bring up NordVPN in Seattle, from `config` and
+`fonn.config` respectively:
 
 ```
 exec $HOME/.local/bin/vpn-connect United_States Seattle
@@ -184,9 +207,8 @@ necessarily usable and a bare `nordvpn connect` loses that race at login and
 fails silently, which leaves you unprotected rather than obviously broken. Logs
 to `$XDG_RUNTIME_DIR/vpn-connect.log`.
 
-It lives in `fonn.config` rather than `fonn.layout` because the layout file is
-about which app owns which screen, and this opens no window. The plain `Sway`
-session does not touch the VPN.
+It lives in the session config rather than the layout file because the layout
+is about which app owns which screen, and this opens no window.
 
 **Installing a session** needs root, since GDM only reads
 `/usr/share/wayland-sessions`:

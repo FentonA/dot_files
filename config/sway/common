@@ -4,8 +4,8 @@
 # window rules, and the background daemons. It launches no applications.
 #
 # Not loaded directly by sway. It is `include`d by:
-#   config                      -> the plain "Sway" session (all apps at once)
-#   profiles/careerplug.config  -> the "Sway — CareerPlug" session (4 workspaces)
+#   config                -> "Sway", "Sway 1.11", "Sway (Nvidia)" — the 5-screen desk
+#   profiles/fonn.config  -> "Sway(fonn)" — the 4-screen work desk
 #
 # Add a binding or a rule here and every profile picks it up.
 
@@ -231,10 +231,9 @@ bar {
 
 ### Startup — infrastructure only
 #
-# The apps themselves are NOT launched here. Each session profile decides what
-# to open: config (the plain "Sway" session) starts the usual everything-at-once
-# set, while profiles/careerplug.config starts one app per workspace. Anything
-# added below runs in *every* session, so keep it to daemons.
+# The apps themselves are NOT launched here. Each session decides what to open,
+# by pointing sway-layout at its own layout file. Anything added below runs in
+# *every* session, so keep it to daemons.
 include /etc/sway/config.d/*
 
 exec gnome-keyring-daemon --start --components=secrets
@@ -261,11 +260,10 @@ for_window [title="Picture-in-Picture"] floating enable, sticky enable, border n
 for_window [title="Picture in picture"] floating enable, sticky enable, border none
 
 ### Window rules
-for_window [app_id="thunderbird"] move scratchpad
-# TickTick runs under XWayland, so it has a `class` and no `app_id` at all —
-# the old [app_id="Ticktick"] rule could never match and TickTick would sit on
-# whatever workspace happened to be focused when it started. Matching on class
-# is what actually sends it to the scratchpad. (Discord is XWayland too, but it
-# has no rule here by design; it is simply not autostarted in Sway(fonn).)
-for_window [class="ticktick"] move scratchpad
-for_window [app_id="Ticktick"] move scratchpad
+#
+# Nothing here decides where an *application* lives — that is a per-session
+# choice, and a `for_window ... move scratchpad` in this file cannot be undone
+# by a session that wants the app on a screen instead. Thunderbird and TickTick
+# used to be ruled here; they now live in the config of each session that wants
+# them hidden (profiles/fonn.config, and `config` for Thunderbird), because the
+# default desk gives TickTick a screen of its own.

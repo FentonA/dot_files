@@ -1,0 +1,53 @@
+# Default session — startup layout
+#
+# Applied by config/sway/config, which is the config every sway entry on the
+# login screen loads except Sway(fonn): "Sway", "Sway 1.11" and "Sway (Nvidia)".
+# Sway (Nvidia) is the one you actually log into, so this is that desk.
+#
+# One line per app:   <workspace number>   <command>
+# Blank lines and #-comments are ignored. Everything after the first token is
+# the command, run through a shell, so flags / pipes / $HOME all work.
+#
+# A workspace number may repeat — that is how a screen gets split between two
+# apps. They open left to right in the order listed here.
+#
+# Use `-` instead of a number for an app that should NOT own a screen. Those are
+# started last, after the numbered screens are placed, so a window on its way to
+# the scratchpad can't be mistaken for a screen's app arriving.
+#
+# Screens open in order. sway-layout switches to the workspace BEFORE launching
+# and waits for the window to appear before moving on — that is what puts each
+# app on the right screen without identifying windows by app_id or class, which
+# is brittle here: Slack, Discord and TickTick are XWayland, Slack, Discord and
+# Obsidian are flatpaks, and ghostty refuses to start if --class isn't
+# reverse-DNS.
+#
+# A slot that already holds a window is left alone, so re-running this
+# mid-session won't open a second copy of anything.
+
+1   ghostty
+
+# Zen lives in ~/.local/bin, which sway's PATH at login does not have —
+# sway-layout prepends it. No Space is forced here the way fonn.layout forces
+# CareerPlug: this desk opens Zen wherever you left it.
+2   zen
+
+# Screen 3, split: Discord left, Slack right.
+#
+# The `slack` on PATH is the snap (/snap/bin/slack). It starts a process but
+# never maps a window on this machine — that is why `exec slack` in the old
+# config never actually gave you Slack. The flatpak build works, so use it.
+3   flatpak run com.discordapp.Discord
+3   flatpak run com.slack.Slack
+
+# Screen 4, split: TickTick left, Spotify right.
+#
+# TickTick only stays here because the scratchpad rule for it lives in
+# fonn.config now rather than in common — see the note there.
+4   ticktick
+4   spotify
+
+5   flatpak run md.obsidian.Obsidian
+
+# Scratchpad apps — no screen of their own. Mod+minus summons the last one.
+-   thunderbird

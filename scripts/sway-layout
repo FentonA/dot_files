@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sway-layout — open one app per workspace at sway startup.
+# sway-layout — open the apps a layout names, on the workspaces it names.
 #
 #   sway-layout fonn          # apply ~/.config/sway-layouts/fonn.layout
 #   sway-layout fonn --dry-run
@@ -10,6 +10,10 @@
 # focused. So rather than launching everything and then trying to work out which
 # window belongs where, this switches to the workspace first, launches one app,
 # and waits for a window to show up before moving to the next.
+#
+# A workspace number may appear more than once in a layout — that is how a
+# screen ends up split between two apps. They open left to right in the order
+# the file lists them.
 #
 # That matters because identifying windows is genuinely unreliable here: Slack
 # and Obsidian are XWayland (class, no app_id), Obsidian is a flatpak, and
@@ -70,7 +74,18 @@ log "applying layout '$NAME'"
 mapfile -t LINES < <(grep -vE '^[[:space:]]*(#|$)' "$FILE")
 [ "${#LINES[@]}" -gt 0 ] || die "$FILE has no screens defined"
 
+# How many apps each workspace is getting. Counted before anything launches,
+# because a screen that will hold two apps has to be split before the first one
+# opens, and because the "already there" check below works per slot, not per
+# workspace.
+declare -A planned=()
+for line in "${LINES[@]}"; do
+  ws="${line%%[[:space:]]*}"
+  [[ $ws =~ ^[0-9]+$ ]] && planned[$ws]=$(( ${planned[$ws]:-0} + 1 ))
+done
+
 first_ws=""
+declare -A placed=()
 deferred=()
 for line in "${LINES[@]}"; do
   ws="${line%%[[:space:]]*}"                       # first token
@@ -109,14 +124,28 @@ for line in "${LINES[@]}"; do
     continue
   fi
 
+  # Idempotent per slot rather than per workspace: the Nth app on a screen is
+  # skipped once that screen already holds N windows. Re-running mid-session
+  # still opens nothing twice, but a screen shared by two apps no longer stops
+  # after the first of them.
+  slot=${placed[$ws]:-0}
   before=$(ws_count "$ws")
-  if [ "$before" -gt 0 ]; then
-    log "workspace $ws already has $before window(s) — leaving it alone"
+  if [ "$before" -gt "$slot" ]; then
+    log "workspace $ws already has $before window(s) — leaving slot $((slot + 1)) alone"
+    placed[$ws]=$((slot + 1))
     continue
   fi
 
   log "workspace $ws: $cmd"
   swaymsg workspace number "$ws" >/dev/null
+
+  # Side by side, not one above the other. sway's default_orientation is `auto`,
+  # which takes the split direction from the output's aspect ratio, so on a
+  # portrait screen two apps would stack. Only worth saying where a second app
+  # is actually coming.
+  if [ "$slot" -eq 0 ] && [ "${planned[$ws]:-1}" -gt 1 ]; then
+    swaymsg splith >/dev/null
+  fi
 
   # setsid so the app is not in this script's process group: sway reaps the
   # exec'd command's group when the script exits, which would take the apps
@@ -134,6 +163,7 @@ for line in "${LINES[@]}"; do
   else
     log "workspace $ws: nothing appeared within ${TIMEOUT}s — moving on"
   fi
+  placed[$ws]=$((slot + 1))
 done
 
 # Land on the first screen before starting the scratchpad apps, so that if one
