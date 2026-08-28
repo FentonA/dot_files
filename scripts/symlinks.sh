@@ -107,8 +107,25 @@ if [ "$OS" = linux ]; then
   # The login-screen half (the session launcher in /opt and the .desktop entries
   # in /usr/share/wayland-sessions) needs root and is NOT done here — run
   # scripts/install-sway-sessions.sh with sudo for that.
+
+# ── macOS desktop ─────────────────────────────────────────────────────────────
+# The macOS counterparts of the sway desk: AeroSpace holds the workspaces and
+# the Caps+S mode, Karabiner holds the keyboard. Neither means anything on Linux.
 else
   echo "  skip (linux only): dunst, sway, waybar, wofi"
+
+  link "$DOTFILES_DIR/config/aerospace/aerospace.toml" ~/.config/aerospace/aerospace.toml
+
+  # Karabiner rules go in the assets directory, NOT into karabiner.json.
+  # karabiner.json is owned by the Karabiner GUI, which rewrites it whole on
+  # every change — a symlink there gets replaced by a real file the first time
+  # you touch a setting. An asset is read-only to Karabiner: it shows up in
+  # Settings > Complex Modifications > Add rule, and you enable it once.
+  link "$DOTFILES_DIR/config/karabiner/linux-parity.json" \
+    ~/.config/karabiner/assets/complex_modifications/linux-parity.json
+
+  mkdir -p ~/.local/bin
+  link "$DOTFILES_DIR/scripts/mac-layout" ~/.local/bin/mac-layout
 fi
 
 echo "===> Symlinks created"

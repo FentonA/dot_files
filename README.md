@@ -110,11 +110,15 @@ nvim/                 LazyVim config
 tmuxinator/           per-project tmux sessions — clickk, career-plug, swish
 anki-templates/       Anki code-drill card templates (see its own README)
 config/               sway, waybar, wofi (linux only)
+config/aerospace/     AeroSpace — the macOS counterpart of config/sway/common
+config/karabiner/     Karabiner rule: CapsLock as Ctrl, Ctrl as Cmd (macOS)
 config/sway/common    every sway session shares this; launches no apps
 config/sway/config    the default session, i.e. "Sway (Nvidia)" — 5 screens
 config/sway/profiles/ one *.config per login session (fonn)
 layouts/              *.layout — which app opens on which workspace
+                      *.macos.layout — the same screens, macOS commands
 scripts/sway-layout   applies a layout at sway startup
+scripts/mac-layout    the same, for AeroSpace
 ```
 
 ## Sway session profiles
@@ -220,6 +224,74 @@ sudo bash scripts/install-sway-sessions.sh
 Re-run it after editing `sway-profile-session` or any `scripts/sway-*.desktop` —
 those are copied, not symlinked, because GDM runs as another user and won't
 follow a link into `$HOME`.
+
+## macOS: the same desk, the same keys
+
+macOS gets as close to the sway desk as it can. Two pieces do the work, both
+installed by `bootstrap.sh`:
+
+```
+config/karabiner/linux-parity.json   CapsLock <-> Ctrl, and Ctrl+C/V as Cmd+C/V
+config/aerospace/aerospace.toml      workspaces, tiling, and the Caps+S mode
+layouts/default.macos.layout         the same five screens, macOS commands
+scripts/mac-layout                   opens them at login
+```
+
+**Copy and paste.** `ctrl:swapcaps` gets you a CapsLock that acts as Control,
+which on Linux is all you need — Ctrl+C is copy there. On macOS copy is Cmd+C,
+so the swap alone leaves Caps+C doing nothing useful. The Karabiner rule adds
+the missing half: Control+key acts as Command+key, for a fixed list of keys
+(`a b c f g i l n o p r t u v w x z , - = 0`), and **not** in a terminal.
+
+Terminals are excluded on purpose. Ctrl+C there has to stay SIGINT and Ctrl+A
+has to stay beginning-of-line. Ghostty is already handled without any of this:
+`ghostty/config` binds `performable:ctrl+c=copy_to_clipboard`, which copies when
+there is a selection and falls through to SIGINT when there isn't — and that
+file is shared, so the terminal behaves identically on both machines.
+
+Four keys are deliberately left alone, each for its own reason:
+
+| key | why not translated |
+|---|---|
+| `s` | it's the AeroSpace mode chord. Ctrl+S doesn't save on Linux either — sway eats it for the same reason. |
+| `q` | Cmd+Q quits the app outright; a fat-fingered Caps+Q shouldn't. |
+| `h` | Cmd+H hides the app, and Ctrl+H is backspace in every readline field. |
+| `m` | Cmd+M minimises to the Dock, which no key gets you back from. |
+
+**Screens.** `config/aerospace/aerospace.toml` is a deliberate mirror of
+`config/sway/common` — same order, same bindings, so a diff of the two reads
+straight. `ctrl-s` enters `mode sway`, and inside it a bare `1`..`0` jumps
+workspace, `h/j/k/l` moves focus and `s` or Escape leaves. Like sway, a jump
+does *not* exit the mode, so you can walk 1, 2, 3 without re-chording.
+
+Two deliberate departures, both forced:
+
+* **`$mod` is Option, not Command.** sway's Mod4 is Super, whose Mac equivalent
+  is Cmd — but Cmd+1..9, Cmd+F and Cmd+Q are load-bearing inside Mac apps, and
+  claiming them window-manager-wide would cost you tab switching and Find. The
+  chord you actually use all day is unaffected.
+* **There is no scratchpad.** Workspace `S` stands in: Alt+Shift+Minus throws a
+  window there, Alt+Minus goes and looks at it. Thunderbird lives there.
+
+`scripts/mac-layout` is `sway-layout` with `aerospace` in place of `swaymsg` and
+`open -a` in place of a bare command — same switch-to-the-workspace-first trick,
+same per-slot idempotency. It is written for bash 3.2, because that is what
+`/bin/bash` on macOS still is and Homebrew's bash 5 is not on the PATH of a
+process launched by a GUI app.
+
+**Two manual steps**, neither scriptable:
+
+1. Karabiner-Elements > Settings > Complex Modifications > Add rule > *Linux
+   parity*. Enabling a rule is GUI-only. Then re-run
+   `scripts/keyboard-macos.sh`, which drops its hidutil swap once Karabiner has
+   it — running both cancels them out, since hidutil remaps below Karabiner and
+   Karabiner then swaps the already-swapped key back.
+2. Grant AeroSpace Accessibility permission when it first asks.
+
+**Not ported, on purpose.** The VPN is a Linux-desk thing and stays there. So
+even setting intent aside, `vpn-connect` drives the NordVPN CLI, which the Mac
+App Store build doesn't ship — the parity here is keyboard and screens, not the
+tunnel.
 
 ## Not tracked here, on purpose
 

@@ -215,9 +215,9 @@ echo "===> Setting up AWS profiles..."
 bash "$DOTFILES_DIR/scripts/aws.sh"
 
 # ── Linux desktop only ────────────────────────────────────────────────────────
-# Keyboard remap (X11/Wayland xkb), autostart (i3/Hyprland/GNOME), fingerprint,
-# swap, and the docker service are all Linux concepts. On macOS: remap Caps Lock
-# in System Settings > Keyboard > Modifier Keys, and autostart via Login Items.
+# Autostart (i3/Hyprland/GNOME), fingerprint, swap and the docker service are
+# Linux concepts. The desktop *keyboard and window management* are not — macOS
+# gets its own equivalents below, via Karabiner-Elements and AeroSpace.
 if [ "$OS" = linux ]; then
   echo "===> Configuring keyboard..."
   bash "$DOTFILES_DIR/scripts/keyboard.sh"
@@ -258,9 +258,33 @@ if [ "$OS" = linux ]; then
 else
   echo "===> Skipping linux-only setup (autostart, systemd, swap, sysctl, gh-notify cron)"
 
-  # The keyboard swap is NOT skipped on macOS — it's the one piece of the Linux
-  # desktop config that has a real equivalent here. keyboard.sh is xkb and
-  # useless; keyboard-macos.sh does the same ctrl:swapcaps via hidutil.
+  # ── macOS desktop parity ───────────────────────────────────────────────────
+  # The sway desk has two halves worth reproducing here, and macOS has an
+  # answer for each:
+  #
+  #   AeroSpace           workspaces, tiling, and binding modes — which is what
+  #                       makes Caps+S then a number work the way it does under
+  #                       sway. Needs no SIP changes, unlike yabai.
+  #   Karabiner-Elements  CapsLock <-> Control, and Control+C/V acting as
+  #                       Command+C/V outside terminals. hidutil can do the
+  #                       first but not the second, and it loses the mapping
+  #                       when a Bluetooth keyboard reconnects.
+  #
+  # Both are casks, so `|| true`: a failed cask should not take the whole
+  # bootstrap down, and the check block at the end of this script reports it.
+  echo "===> Installing AeroSpace and Karabiner-Elements..."
+  if [ ! -d /Applications/AeroSpace.app ]; then
+    brew install --cask nikitabobko/tap/aerospace ||
+      echo "  WARN: aerospace cask failed; brew install --cask nikitabobko/tap/aerospace"
+  fi
+  if [ ! -d /Applications/Karabiner-Elements.app ]; then
+    brew install --cask karabiner-elements ||
+      echo "  WARN: karabiner-elements cask failed; install it by hand"
+  fi
+
+  # keyboard.sh is xkb and useless here. keyboard-macos.sh works out whether
+  # Karabiner is carrying the swap and, if it is not, installs the hidutil
+  # LaunchAgent as a standalone fallback.
   bash "$DOTFILES_DIR/scripts/keyboard-macos.sh"
 fi
 
@@ -305,6 +329,7 @@ check cargo "open a new shell — fish/config.fish adds ~/.cargo/bin"
 if [ "$OS" = mac ]; then
   check ghostty "brew install --cask ghostty"
   check docker "brew install --cask docker-desktop"
+  check aerospace "brew install --cask nikitabobko/tap/aerospace"
   # psql comes from keg-only libpq, which fish/config.fish adds to PATH. It
   # will read MISSING in *this* bash run and be fine in a new fish shell.
   check psql "open a new fish shell (keg-only libpq PATH)"

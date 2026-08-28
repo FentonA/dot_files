@@ -1,0 +1,199 @@
+# AeroSpace — the macOS half of config/sway/common.
+#
+# macOS has no sway, so the workspaces, the modes and the tiling come from
+# AeroSpace (an i3-like tiling WM that needs no SIP changes). This file is a
+# deliberate mirror of config/sway/common: when you change a binding there,
+# change it here, and keep the two in the same order so a diff of the two files
+# stays readable.
+#
+#   ~/.config/aerospace/aerospace.toml   (-> dot_files/config/aerospace/aerospace.toml)
+#
+# What is NOT 1:1, and why:
+#
+#   $mod is `alt` here, not `cmd`. sway uses Mod4 (Super), whose macOS
+#   equivalent is Command — but Cmd+1..9, Cmd+F, Cmd+D and Cmd+Q are all load-
+#   bearing inside Mac apps, so binding them window-manager-wide would cost you
+#   tab switching and Find. Option is free. The chord you actually use all day,
+#   Caps+S then a number, IS identical, because Ctrl+S means nothing on macOS.
+#
+#   There is no scratchpad. Workspace `S` stands in for it: Alt+Shift+Minus
+#   throws a window there, Alt+Minus goes and looks at it.
+
+start-at-login = true
+
+# Screens — 1 terminal · 2 zen · 3 discord+slack · 4 ticktick+spotify · 5 obsidian
+#
+# WHICH app goes on which screen is not written here — it lives in
+#   ~/.config/sway-layouts/default.macos.layout
+# the macOS sibling of default.layout, so the layout can change without touching
+# this file. `exec-and-forget` runs the script through bash and does not wait.
+after-startup-command = ['exec-and-forget $HOME/.local/bin/mac-layout default']
+
+# Two apps sharing a screen sit side by side, which is what `splith` gets you on
+# the sway side. `auto` would decide from the display's aspect ratio instead.
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'horizontal'
+
+# Flatten a container when it is left holding a single window, so closing one of
+# a pair doesn't leave the survivor in a one-window split that the next window
+# then joins. sway does this on its own.
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+
+# Alt+Tab and Mission Control still work; AeroSpace only claims the keys below.
+[key-mapping]
+preset = 'qwerty'
+
+[gaps]
+inner.horizontal = 6
+inner.vertical = 6
+outer.left = 6
+outer.right = 6
+outer.top = 6
+outer.bottom = 6
+
+### Key bindings — $mod is alt
+[mode.main.binding]
+
+# Basics
+alt-enter = 'exec-and-forget open -a Ghostty'
+alt-q = 'close'
+alt-shift-c = 'reload-config'
+
+# Moving focus
+alt-h = 'focus left'
+alt-j = 'focus down'
+alt-k = 'focus up'
+alt-l = 'focus right'
+alt-left = 'focus left'
+alt-down = 'focus down'
+alt-up = 'focus up'
+alt-right = 'focus right'
+
+# Moving windows
+alt-shift-h = 'move left'
+alt-shift-j = 'move down'
+alt-shift-k = 'move up'
+alt-shift-l = 'move right'
+alt-shift-left = 'move left'
+alt-shift-down = 'move down'
+alt-shift-up = 'move up'
+alt-shift-right = 'move right'
+
+# Workspaces
+alt-1 = 'workspace 1'
+alt-2 = 'workspace 2'
+alt-3 = 'workspace 3'
+alt-4 = 'workspace 4'
+alt-5 = 'workspace 5'
+alt-6 = 'workspace 6'
+alt-7 = 'workspace 7'
+alt-8 = 'workspace 8'
+alt-9 = 'workspace 9'
+alt-0 = 'workspace 10'
+
+# Move window to workspace
+alt-shift-1 = 'move-node-to-workspace 1'
+alt-shift-2 = 'move-node-to-workspace 2'
+alt-shift-3 = 'move-node-to-workspace 3'
+alt-shift-4 = 'move-node-to-workspace 4'
+alt-shift-5 = 'move-node-to-workspace 5'
+alt-shift-6 = 'move-node-to-workspace 6'
+alt-shift-7 = 'move-node-to-workspace 7'
+alt-shift-8 = 'move-node-to-workspace 8'
+alt-shift-9 = 'move-node-to-workspace 9'
+alt-shift-0 = 'move-node-to-workspace 10'
+
+# Layout. AeroSpace's `accordion` is the nearest thing to sway's stacking and
+# tabbed: vertical accordion stacks, horizontal accordion runs across like tabs.
+alt-b = 'layout tiles horizontal'
+alt-v = 'layout tiles vertical'
+alt-s = 'layout accordion vertical'
+alt-w = 'layout accordion horizontal'
+alt-e = 'layout tiles horizontal vertical'
+alt-f = 'fullscreen'
+alt-shift-space = 'layout floating tiling'
+
+# Scratchpad stand-in — see the header. There is no "show the last one" here, so
+# Alt+Minus is a plain visit to workspace S.
+alt-shift-minus = 'move-node-to-workspace S'
+alt-minus = 'workspace S'
+
+alt-r = 'mode resize'
+
+# The chord: Caps(Ctrl)+S, then a single key. Identical to sway's `mode "sway"`.
+ctrl-s = 'mode sway'
+
+### Sway mode (CapsLock/Ctrl + S, then single key)
+#
+# Like sway, a workspace jump does NOT leave the mode — `s` or Escape does. That
+# is what lets you walk 1, 2, 3 without re-chording.
+[mode.sway.binding]
+
+# Workspaces
+1 = 'workspace 1'
+2 = 'workspace 2'
+3 = 'workspace 3'
+4 = 'workspace 4'
+5 = 'workspace 5'
+6 = 'workspace 6'
+7 = 'workspace 7'
+8 = 'workspace 8'
+9 = 'workspace 9'
+0 = 'workspace 10'
+
+# Cycle workspaces
+left = 'workspace prev'
+right = 'workspace next'
+
+# Focus
+h = 'focus left'
+j = 'focus down'
+k = 'focus up'
+l = 'focus right'
+
+# Move window to workspace
+shift-1 = 'move-node-to-workspace 1'
+shift-2 = 'move-node-to-workspace 2'
+shift-3 = 'move-node-to-workspace 3'
+shift-4 = 'move-node-to-workspace 4'
+shift-5 = 'move-node-to-workspace 5'
+
+ctrl-h = 'focus left'
+ctrl-j = 'focus down'
+ctrl-k = 'focus up'
+ctrl-l = 'focus right'
+
+# Workspaces with ctrl held
+ctrl-1 = 'workspace 1'
+ctrl-2 = 'workspace 2'
+ctrl-3 = 'workspace 3'
+ctrl-4 = 'workspace 4'
+ctrl-5 = 'workspace 5'
+ctrl-left = 'workspace prev'
+ctrl-right = 'workspace next'
+
+# Actions
+enter = 'exec-and-forget open -a Ghostty'
+q = 'close'
+f = 'fullscreen'
+r = 'reload-config'
+backslash = 'layout tiles horizontal'
+minus = 'layout tiles vertical'
+
+# Exit sway mode
+s = 'mode main'
+esc = 'mode main'
+
+### Resize mode
+[mode.resize.binding]
+h = 'resize width -50'
+j = 'resize height +50'
+k = 'resize height -50'
+l = 'resize width +50'
+left = 'resize width -50'
+down = 'resize height +50'
+up = 'resize height -50'
+right = 'resize width +50'
+enter = 'mode main'
+esc = 'mode main'
