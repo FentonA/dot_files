@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# mac-layout — the macOS half of scripts/sway-layout.
+#
+#   mac-layout default          # apply ~/.config/sway-layouts/default.macos.layout
+#   mac-layout default --dry-run
+#
+# Run from config/aerospace/aerospace.toml as:
+#   after-startup-command = ['exec-and-forget $HOME/.local/bin/mac-layout default']
+#
+# Same trick as the sway version, for the same reason: AeroSpace puts a new
+# window on whatever workspace is focused when it appears, so this switches to
+# the workspace first, launches one app, and waits for its window before moving
+# on. Identifying windows afterwards by app name is no more reliable on macOS
+# than it is under sway.
+#
+# A workspace may appear more than once — that is how a screen ends up split
+# between two apps. They open left to right in the order the file lists them.
+#
+# Two differences from sway-layout, both forced by macOS:
+#
+#   * a workspace token may be a name, not just a number. AeroSpace workspaces
+#     are named strings, and `S` is this config's scratchpad stand-in.
+#   * `open -a Foo` on an app that is ALREADY running just brings it forward
+#     without making a window. At login nothing is running so it does not come
+#     up, but re-running this by hand with everything open will wait out the
+#     timeout on any app whose window lives on another workspace. It is logged,
+#     not silent.
+#
+# The slot check counts windows, so it cannot tell WHICH app is missing. If the
+# first app on a shared screen fails and you re-run mid-session, the second one
+# gets launched again — harmless, because `open -a` raises the running instance
+# rather than starting a second copy, but it will steal focus.
+#
+# If an app turns out to be too slow or reopens windows on its own, the sturdier
+# fix is an `[[on-window-detected]]` rule in aerospace.toml, which places a
+# window whenever it appears rather than only at login.
+
+# Written for bash 3.2, which is what /bin/bash on macOS still is: no `mapfile`,
+# no `declare -A`. Homebrew's bash 5 is not on a GUI-launched process's PATH, so
+# assuming it would work at a terminal and fail at login — the one place this
+# script actually runs.
+set -uo pipefail
+
+# Homebrew's bin is not on PATH for a process launched by a GUI app, and neither
+# is ~/.local/bin. Prepending both, Apple Silicon prefix first.
+for d in "$HOME/.local/bin" /opt/homebrew/bin /usr/local/bin; do
+  case ":$PATH:" in
+    *":$d:"*) ;;
+    *) PATH="$d:$PATH" ;;
+  esac
+done
+export PATH
+
+LAYOUT_DIR="${SWAY_LAYOUT_DIR:-$HOME/.config/sway-layouts}"
+TIMEOUT="${MAC_LAYOUT_TIMEOUT:-45}"      # per app, seconds — Mac apps start slower
+LOG="${TMPDIR:-/tmp}/mac-layout.log"
+
+log() { printf '%s %s\n' "$(date +%H:%M:%S)" "$*" | tee -a "$LOG" >&2; }
+die() { log "error: $*"; exit 1; }
+
+command -v aerospace >/dev/null || die "aerospace not found — is AeroSpace installed and running?"
+
+# Number of windows on a workspace. `list-windows` prints one line per window
+# and nothing at all for an empty workspace.
+ws_count() {
+  aerospace list-windows --workspace "$1" 2>/dev/null | awk 'NF' | wc -l | tr -d '[:space:]'
+}
+
+NAME="${1:-}"; [ -n "$NAME" ] || die "usage: mac-layout <name> [--dry-run]"
+DRY=0; [ "${2:-}" = "--dry-run" ] && DRY=1
+
+FILE="$LAYOUT_DIR/$NAME.macos.layout"
+[ -r "$FILE" ] || die "no layout at $FILE"
+
+: > "$LOG"
+log "applying layout '$NAME'"
+
+LINES=()
+while IFS= read -r l; do LINES+=("$l"); done < <(grep -vE '^[[:space:]]*(#|$)' "$FILE")
+[ "${#LINES[@]}" -gt 0 ] || die "$FILE has no screens defined"
+
+# How many apps are already placed on each workspace, as a flat " ws:n" string
+# rather than an associative array. Later entries win, so a "set" is an append.
+PLACED=""
+placed_get() {
+  local v
+  v=$(printf '%s' "$PLACED" | tr ' ' '\n' | awk -F: -v w="$1" '$1 == w { print $2 }' | tail -1)
+  printf '%s' "${v:-0}"
+}
+placed_set() { PLACED="$PLACED $1:$2"; }
+
+first_ws=""
+deferred=()
+for line in "${LINES[@]}"; do
+  ws="${line%%[[:space:]]*}"                       # first token
+  cmd="${line#"$ws"}"                              # the rest
+  cmd="${cmd#"${cmd%%[![:space:]]*}"}"             # ltrim
+
+  # `-` means "no screen of its own": started last, and left wherever it lands.
+  if [ "$ws" = "-" ]; then
+    [ -n "$cmd" ] && deferred+=("$cmd")
+    continue
+  fi
+
+  if ! [[ $ws =~ ^[A-Za-z0-9]+$ ]]; then
+    log "skip: '$line' does not start with a workspace name or -"
+    continue
+  fi
+  [ -n "$cmd" ] || { log "skip: workspace $ws has no command"; continue; }
+  [ -z "$first_ws" ] && first_ws=$ws
+
+  if ((DRY)); then
+    log "would open on workspace $ws: $cmd"
+    continue
+  fi
+
+  # Idempotent per slot: the Nth app on a screen is skipped once that screen
+  # already holds N windows, so re-running opens nothing twice.
+  slot=$(placed_get "$ws")
+  before=$(ws_count "$ws")
+  if [ "$before" -gt "$slot" ]; then
+    log "workspace $ws already has $before window(s) — leaving slot $((slot + 1)) alone"
+    placed_set "$ws" $((slot + 1))
+    continue
+  fi
+
+  log "workspace $ws: $cmd"
+  aerospace workspace "$ws" >/dev/null 2>&1
+
+  # Unlike sway's exec, `open` reports whether it found the app — so a missing
+  # or misnamed app says so immediately instead of looking like a slow start.
+  if ! sh -c "$cmd" >>"$LOG" 2>&1; then
+    log "workspace $ws: launch failed — skipping (is the app installed?)"
+    placed_set "$ws" $((slot + 1))
+    continue
+  fi
+
+  deadline=$((SECONDS + TIMEOUT))
+  while ((SECONDS < deadline)); do
+    [ "$(ws_count "$ws")" -gt "$before" ] && break
+    sleep 0.25
+  done
+
+  if [ "$(ws_count "$ws")" -gt "$before" ]; then
+    log "workspace $ws: window up"
+  else
+    log "workspace $ws: nothing appeared within ${TIMEOUT}s — moving on"
+  fi
+  placed_set "$ws" $((slot + 1))
+done
+
+[ -n "$first_ws" ] && ((DRY == 0)) && aerospace workspace "$first_ws" >/dev/null 2>&1
+
+for cmd in ${deferred[@]+"${deferred[@]}"}; do
+  if ((DRY)); then log "would start (no screen): $cmd"; continue; fi
+  log "no screen: $cmd"
+  sh -c "$cmd" >>"$LOG" 2>&1 || log "no screen: launch failed — $cmd"
+done
+
+((DRY)) && exit 0
+log "done — landed on workspace ${first_ws:-1}"
