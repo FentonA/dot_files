@@ -9,6 +9,32 @@ gtk-single-instance = false
 # Blank lines are ignored!
 
 keybind = ctrl+i=toggle_quick_terminal
+
+# ── Quick terminal (Ctrl+I) ───────────────────────────────────────────────────
+# While the drop-down is up it owns the keyboard, and nothing takes it back.
+#
+# `exclusive` is a wlr-layer-shell keyboard_interactivity mode: the compositor
+# keeps sending key events to the quick terminal even when another window holds
+# focus. `on-demand`, the default, only feeds it while it is focused — so a
+# window opening, or the pointer drifting onto another window, would quietly
+# take your typing somewhere else mid-command.
+#
+# This cannot be done from the sway side. The quick terminal is a layer-shell
+# surface, not a toplevel, so `for_window` criteria never match it and there is
+# nothing there to make sticky or focused.
+#
+# sway's own bindings still work: it matches bindsym before handing a key to any
+# surface, so Ctrl+I toggles it back off and the Ctrl+S mode chord still opens.
+#
+# Linux/Wayland only — macOS is always `on-demand`, and the setting is ignored
+# there rather than being an error.
+quick-terminal-keyboard-interactivity = exclusive
+
+# Stay open when focus does shift, rather than vanishing mid-task. Already the
+# default on Linux, but Ghostty's own docs say "this default may change in the
+# future", and the whole point of the line above is that this window sticks
+# around — so pin it rather than inherit it.
+quick-terminal-autohide = false
 keybind = ctrl+z=close_surface
 keybind = ctrl+t=new_split:right
 keybind = performable:ctrl+c=copy_to_clipboard
