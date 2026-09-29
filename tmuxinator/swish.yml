@@ -10,6 +10,12 @@
 #   - Added k8s window: kubectl/helm/argocd against EKS, namespace `deng`.
 #   - Added db window: dadbod-ui + mycli/pgcli.
 #   - Test loops are `uv run pytest`, not bare pytest.
+#   - Added market-dist window (ds_market_dist is actively developed, same
+#     tier as props/watcher). Replaced misc with libs (ds_functions,
+#     ds_lu_stat_type, bet-request) and put swish-k8s-secrets in the k8s
+#     window. slog and ds_watcher's Athena tooling aren't part of the daily
+#     loop, so no window for slog. ds_constants and k8s_ssh aren't cloned
+#     locally yet -- see the note on the libs window.
 #
 # PREREQUISITE FOR ALMOST EVERYTHING: VPN connected.
 #   Nexus package installs, all databases, Redis, Kafka, and the K8s API
@@ -22,6 +28,21 @@ pre_window: tmux set-window-option -g main-pane-width 70%
 startup_window: props
 
 windows:
+  # ── omaha: the rust services ──────────────────────────────────────────────
+  # MBF API + alternates writer. Single nvim so rust-analyzer sees the whole
+  # workspace; per-crate nvim breaks cross-crate goto-definition.
+  - omaha:
+      root: ~/omaha
+      layout: main-vertical
+      panes:
+        - nvim .
+        # Scope the watcher once you know the crate layout:
+        #   cargo watch -x 'test -p <crate>' -w <crate>/src
+        - # cargo watch -x test
+        # Benchmarking pane: criterion baselines, flamegraph
+        - # cargo bench   /   cargo flamegraph --bin <bin>
+
+
   # ── ds_props: the main repo ───────────────────────────────────────────────
   # Four pipelines live here: main props, fast props, leaders/h2h, alternates.
   # This is where most work happens.
@@ -44,29 +65,30 @@ windows:
         - # uv run pytest test/unit -q
         - # uv run cli run-pregame-watcher
 
-  # ── omaha: the rust services ──────────────────────────────────────────────
-  # MBF API + alternates writer. Single nvim so rust-analyzer sees the whole
-  # workspace; per-crate nvim breaks cross-crate goto-definition.
-  - omaha:
-      root: ~/omaha
+  # ── ds_market_dist: market blending ───────────────────────────────────────
+  - market-dist:
+      root: ~/ds_market_dist
       layout: main-vertical
       panes:
         - nvim .
-        # Scope the watcher once you know the crate layout:
-        #   cargo watch -x 'test -p <crate>' -w <crate>/src
-        - # cargo watch -x test
-        # Benchmarking pane: criterion baselines, flamegraph
-        - # cargo bench   /   cargo flamegraph --bin <bin>
+        - # uv run pytest test/unit -q
+        - # uv run cli --help
 
-  # ── bet-request + shared modules ──────────────────────────────────────────
-  # Lower-traffic repos grouped into one window. Split out if one gets busy.
-  - misc:
+  # ── libs: shared/read-mostly modules ──────────────────────────────────────
+  # ds_functions (shared funcs for props + bet-request), ds_lu_stat_type
+  # (stat_type_id / position lookups), cross-sports-bet-request-py. All
+  # read-mostly relative to props/watcher/market-dist, so one window is fine.
+  #
+  # NOTE: ds_constants and k8s_ssh aren't cloned to ~ yet -- once they are,
+  # add a `nvim ds_constants` / `nvim k8s_ssh` pane here (or their own window
+  # for k8s_ssh, next to the k8s window below).
+  - libs:
       root: ~/
       layout: main-vertical
       panes:
+        - nvim ds_functions
+        - nvim ds_lu_stat_type
         - nvim cross-sports-bet-request-py
-        - # cd cross-sports-bet-request-py && uv run pytest -q
-        - # ds_functions / ds_constants / ds_lu_stat_type — read-mostly
 
   # ── k8s: cluster ops ──────────────────────────────────────────────────────
   # Namespace is `deng`. Clusters: ausw2.ds-main.* (props/sim/watcher/bet-request),
@@ -76,9 +98,11 @@ windows:
       root: ~/
       layout: main-horizontal
       panes:
-        # Live pod watch. -w streams changes; drop it for a one-shot list.
-        - # kubectl get pods -n deng -w
+        # swish-k8s-secrets: 1Password-backed secret manifests. YAML LSP
+        # (schemastore) is set up in nvim for these.
+        - nvim swish-k8s-secrets
         # Ops pane: describe, logs, exec
+        #   kubectl get pods -n deng -w
         #   kubectl describe pod <pod> -n deng
         #   kubectl logs -f <pod> -n deng
         #   kubectl logs <pod> -n deng --previous     (crashed pod)

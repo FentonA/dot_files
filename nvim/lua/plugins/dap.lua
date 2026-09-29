@@ -1,5 +1,9 @@
--- Python debugging. Projects here are uv-managed, so the project's own .venv is
--- preferred over the system interpreter -- that's where `uv add --dev debugpy` lands.
+-- Python debugging. Projects here are uv-managed, so the project's own .venv
+-- is used to run the debuggee (see resolve_python below). The debug *adapter*
+-- itself is a separate process that only needs debugpy importable -- it does
+-- NOT need to be the project venv -- so it runs via `uv run --with debugpy`,
+-- an ephemeral env from uv's global cache. This keeps debugpy out of every
+-- repo's pyproject.toml/uv.lock entirely.
 local function venv_python()
   local start = vim.fn.expand("%:p:h")
   if start == "" then
@@ -53,10 +57,13 @@ return {
       dapui.setup()
       require("nvim-dap-virtual-text").setup({})
 
-      -- The adapter python is resolved once at load; `resolve_python` below is
-      -- re-run per session, so the debuggee always follows the current project.
+      -- "uv" is a magic value nvim-dap-python recognizes: it spawns the
+      -- adapter as `uv run --with debugpy python -m debugpy.adapter` instead
+      -- of a literal interpreter path.
       local dap_python = require("dap-python")
-      dap_python.setup(python_path())
+      dap_python.setup("uv")
+      -- resolve_python is re-run per debug session, so the *debuggee* always
+      -- follows whichever project's .venv the current buffer belongs to.
       dap_python.resolve_python = python_path
 
       dap.listeners.after.event_initialized["dapui_config"] = function()
