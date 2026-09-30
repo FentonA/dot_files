@@ -27,6 +27,58 @@ export XDG_DATA_DIRS="$PREFIX/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share
 export WLR_NO_HARDWARE_CURSORS=1
 export LIBGL_ALWAYS_SOFTWARE=0
 
+# Use the Vulkan renderer rather than GLES2. On the NVIDIA driver the GLES2
+# path is the one that flickers; Vulkan is both better tested upstream and the
+# path explicit sync (linux-drm-syncobj-v1, new in wlroots 0.18+) was built for.
+# Overridable from the environment, so `WLR_RENDERER=gles2` at the login shell
+# gets the old behaviour back without editing this file.
+export WLR_RENDERER="${WLR_RENDERER:-vulkan}"
+
+# Hybrid GPU: make the AMD iGPU wlroots' PRIMARY DRM device.
+#
+# This laptop has two DRM devices - the NVIDIA dGPU (which owns HDMI-A-1, the
+# Dell) and the AMD iGPU (which owns eDP-1, the built-in panel). With
+# WLR_DRM_DEVICES unset, wlroots enumerates them and takes the FIRST one it
+# finds as primary. That was the NVIDIA card, which left eDP-1 sitting on a
+# secondary device - and the proprietary NVIDIA driver cannot hand buffers to
+# amdgpu for scanout. The modeset was rejected outright:
+#
+#   [ERROR] [sway/config/output.c:897] Requested backend configuration failed
+#   [ERROR] [sway/config/output.c:906] Search for valid config failed
+#
+# so the laptop screen stayed black - connected, with modes, but never enabled
+# - while the Dell worked fine. `swaymsg output eDP-1 enable` failed the same
+# way at every mode and refresh rate, because the mode was never the problem.
+#
+# Listing the iGPU first flips it: wlroots renders on AMD, scans out to eDP-1
+# natively, and copies to the NVIDIA card for HDMI - the direction that
+# actually works. The order is what matters, not the membership.
+#
+# Resolved at runtime from the driver name rather than hardcoded as card1/card2,
+# because DRM minor numbers are assigned in probe order and can swap between
+# boots. Respects a value already set in the environment.
+if [ -z "${WLR_DRM_DEVICES:-}" ]; then
+  _igpu=""
+  _dgpu=""
+  for _sysdev in /sys/class/drm/card[0-9]*; do
+    _name="${_sysdev##*/}"
+    case "$_name" in *-*) continue ;; esac   # skip connector dirs (card2-eDP-1)
+    [ -e "/dev/dri/$_name" ] || continue
+    _drv="$(readlink -f "$_sysdev/device/driver" 2>/dev/null)" || _drv=""
+    case "${_drv##*/}" in
+      amdgpu|i915|xe) _igpu="${_igpu:+$_igpu:}/dev/dri/$_name" ;;
+      "")             ;;
+      *)              _dgpu="${_dgpu:+$_dgpu:}/dev/dri/$_name" ;;
+    esac
+  done
+  # Only set it when an iGPU was actually found; otherwise leave wlroots to its
+  # own default rather than handing it a list with nothing to render on.
+  if [ -n "$_igpu" ]; then
+    export WLR_DRM_DEVICES="${_igpu}${_dgpu:+:$_dgpu}"
+  fi
+  unset _igpu _dgpu _sysdev _name _drv
+fi
+
 # Make sure the dbus/systemd activation environment that xdg-desktop-portal is
 # started from carries the new XDG_DATA_DIRS, otherwise the activated portal
 # would still resolve the system 0.7.1 backend.

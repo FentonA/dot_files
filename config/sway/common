@@ -139,10 +139,29 @@ bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle
 bindsym XF86AudioMicMute exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
 
 # Brightness controls
-bindsym $mod+F8 exec /usr/bin/brightnessctl --device='amdgpu_bl1' set 10%-
-bindsym $mod+F9 exec /usr/bin/brightnessctl --device='amdgpu_bl1' set +10%
+#
+# Selected by CLASS, not by device name. These used to name 'amdgpu_bl1', which
+# does not exist on this machine - the panel backlight registers as 'amdgpu_bl2'
+# - so both bindings failed silently with "Device 'amdgpu_bl1' not found" and
+# screen brightness could not be changed from the keyboard at all. The trailing
+# digit is a registration counter, so pinning it is fragile; --class=backlight
+# picks the panel backlight whatever it ends up numbered.
+bindsym $mod+F8 exec /usr/bin/brightnessctl --class=backlight set 10%-
+bindsym $mod+F9 exec /usr/bin/brightnessctl --class=backlight set +10%
 bindsym $mod+Shift+F8 exec /usr/bin/brightnessctl --device='system76::kbd_backlight' set 25-
 bindsym $mod+Shift+F9 exec /usr/bin/brightnessctl --device='system76::kbd_backlight' set +25
+
+# Screenshots — scripts/shot. Each one copies to the clipboard AND writes to
+# ~/Pictures/Screenshots, so paste is instant and the file is there if you
+# need it later. Print alone is the common case: drag a box.
+bindsym Print exec $HOME/.local/bin/shot region
+bindsym $mod+Print exec $HOME/.local/bin/shot window
+bindsym $mod+Shift+Print exec $HOME/.local/bin/shot screen
+bindsym Shift+Print exec $HOME/.local/bin/shot full
+
+# Same thing without reaching for Print, which the external keyboards don't
+# all have in the same place.
+bindsym $mod+Shift+s exec $HOME/.local/bin/shot region
 
 ### Sway mode (CapsLock/Ctrl + S, then single key)
 mode "sway" {
@@ -196,6 +215,9 @@ mode "sway" {
     bindsym r reload
     bindsym backslash splith
     bindsym minus splitv
+    # Leaves the mode first: slurp needs the keyboard to read Escape as
+    # "cancel the selection", and it can't while sway is holding it for a mode.
+    bindsym p mode "default"; exec $HOME/.local/bin/shot region
 
     # Exit sway mode
     bindsym s mode "default"
@@ -267,3 +289,8 @@ for_window [title="Picture in picture"] floating enable, sticky enable, border n
 # used to be ruled here; they now live in the config of each session that wants
 # them hidden (profiles/fonn.config, and `config` for Thunderbird), because the
 # default desk gives TickTick a screen of its own.
+
+
+# Monitor + keyoard bindings
+bindsym F13 exec ddcutil --bus 25 setvcp 60 0x11
+bindsym F14 exec ddcutil --bus 25 setvcp 60 0x19

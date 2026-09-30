@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# shot — take a screenshot on sway.
+#
+#   shot            region select (default)
+#   shot region     drag a box with slurp
+#   shot window     the focused window
+#   shot screen     the output the focus is on
+#   shot full       every output, composited side by side
+#
+# Every shot does BOTH things: it lands in the clipboard ready to paste, and it
+# is written to ~/Pictures/Screenshots. That combination is deliberate — the
+# clipboard is what you want nine times out of ten (paste into Slack, a PR, a
+# ticket), but the clipboard is also gone the moment you copy anything else, so
+# the file is the undo. Nothing to decide at capture time.
+#
+# There is no resident process here. grim and slurp run, write, and exit; the
+# only thing that lingers is wl-copy holding the selection, which is how
+# Wayland clipboards work (the *source* client owns the data, so something has
+# to stay alive to serve it). That is the whole app.
+#
+# Bound to Print / $mod+Print / $mod+Shift+s in config/sway/common.
+
+set -uo pipefail
+
+DIR="${SHOT_DIR:-$HOME/Pictures/Screenshots}"
+FILE="$DIR/$(date +%Y-%m-%d_%H-%M-%S).png"
+
+# Burnt sienna, to match client.focused in config/sway/common. RRGGBBAA.
+SEL_BOX="${SHOT_SELECTION:-c45c2633}"
+SEL_BORDER="${SHOT_BORDER:-c45c26ff}"
+
+note() { notify-send -a shot -i "${2:-camera-photo}" "$1" "${3:-}"; }
+
+case "${1:-}" in -h|--help|help)
+  sed -n '2,8p' "$0" | sed 's/^# \?//'
+  exit 0 ;;
+esac
+
+command -v grim >/dev/null || {
+  note "shot: grim is not installed" dialog-error "sudo apt install grim"
+  echo "shot: grim is not installed — sudo apt install grim" >&2
+  exit 1
+}
+
+mkdir -p "$DIR" || exit 1
+
+case "${1:-region}" in
+  region)
+    # slurp exits non-zero when you press Escape or right-click. That is a
+    # cancel, not a failure, so leave without a file and without a complaint.
+    GEOM=$(slurp -b "$SEL_BOX" -c "$SEL_BORDER" -w 2) || exit 0
+    [ -n "$GEOM" ] || exit 0
+    ARGS=(-g "$GEOM")
+    ;;
+
+  window)
+    # Ask sway where the focused window is rather than making the user draw a
+    # box around it. .rect is the window including decorations; for a floating
+    # or fullscreen window it is still the right rectangle, which is why this
+    # reads rect and not window_rect (window_rect is relative to the parent).
+    GEOM=$(swaymsg -t get_tree | jq -r '
+      .. | objects | select(.focused == true) | .rect
+      | "\(.x),\(.y) \(.width)x\(.height)"' | head -1)
+    [ -n "$GEOM" ] && [ "$GEOM" != "null" ] || {
+      note "shot: no focused window" dialog-error
+      exit 1
+    }
+    ARGS=(-g "$GEOM")
+    ;;
+
+  screen)
+    OUT=$(swaymsg -t get_outputs | jq -r '.[] | select(.focused) | .name')
+    [ -n "$OUT" ] || { note "shot: no focused output" dialog-error; exit 1; }
+    ARGS=(-o "$OUT")
+    ;;
+
+  full)
+    # No -g and no -o: grim composites every output into one image.
+    ARGS=()
+    ;;
+
+  *)
+    echo "shot: unknown mode '$1' — try region, window, screen, full" >&2
+    exit 1
+    ;;
+esac
+
+grim "${ARGS[@]}" "$FILE" || {
+  note "shot: capture failed" dialog-error
+  exit 1
+}
+
+# Feed the clipboard from the file, not from a second capture — one grab, one
+# image, so the pasted picture and the saved picture can never disagree.
+wl-copy --type image/png < "$FILE"
+
+note "Screenshot copied" "$FILE" "$(basename "$FILE")"
