@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Focus a running app by app_id (Wayland) or class (Xwayland)
-# Usage: dunst-focus.sh <app_id> [fallback_class]
+# Focus a running app's window, matching the name case-insensitively against
+# app_id (Wayland) and class (XWayland). A window hidden in the scratchpad is
+# shown. Exits non-zero if nothing matched.
+# Usage: dunst-focus.sh <name>
 
-APP_ID="$1"
-FALLBACK="${2:-$1}"
+NAME="$1"
+[ -n "$NAME" ] || exit 1
 
-swaymsg "[app_id=\"^${APP_ID}\$\"] focus" 2>/dev/null && exit 0
-swaymsg "[class=\"^${FALLBACK}\$\"] focus" 2>/dev/null && exit 0
-swaymsg "[app_id=\".*${APP_ID}.*\"] focus" 2>/dev/null
+swaymsg "[app_id=\"(?i)${NAME}\"] focus" >/dev/null 2>&1 && exit 0
+swaymsg "[class=\"(?i)${NAME}\"] focus" >/dev/null 2>&1
