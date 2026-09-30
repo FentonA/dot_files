@@ -42,8 +42,8 @@
 
 # Screen 4, split: TickTick left, Spotify right.
 #
-# TickTick only stays here because the scratchpad rule for it lives in
-# fonn.config now rather than in common — see the note there.
+# config/sway/config also assigns TickTick to this workspace, so it comes back
+# here when relaunched mid-session too.
 4   ticktick
 4   spotify
 

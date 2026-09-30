@@ -167,8 +167,8 @@ Two gotchas found the hard way, both already handled:
   `flatpak run com.slack.Slack`.
 * TickTick is XWayland, so the old `for_window [app_id="Ticktick"]` rule could
   never match. Matching on `class` is what works. Both sessions give TickTick
-  screen 4; `fonn.config` also pins it there with `assign [class="ticktick"]`,
-  so it returns to screen 4 when reopened from the tray rather than landing on
+  screen 4, and each session's config also pins it there with
+  `assign [class="ticktick"]`, so it returns to screen 4 when reopened from the tray rather than landing on
   whatever is focused. Thunderbird's scratchpad rule is declared per session,
   not in `common`: a `move scratchpad` inherited from `common` cannot be undone
   by the session that includes it.

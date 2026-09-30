@@ -264,6 +264,6 @@ for_window [title="Picture in picture"] floating enable, sticky enable, border n
 # Nothing here decides where an *application* lives — that is a per-session
 # choice, and a `for_window ... move scratchpad` in this file cannot be undone
 # by a session that wants the app on a screen instead. Thunderbird and TickTick
-# used to be ruled here; they now live in the config of each session that wants
-# them hidden (profiles/fonn.config, and `config` for Thunderbird), because the
-# default desk gives TickTick a screen of its own.
+# used to be ruled here; each session's config now declares its own rules for
+# them (`config` and profiles/fonn.config): Thunderbird to the scratchpad,
+# TickTick assigned to screen 4.
