@@ -14,7 +14,10 @@
 # is brittle here: Slack and Obsidian are XWayland, Obsidian and Slack are
 # flatpaks, and ghostty refuses to start if --class isn't reverse-DNS.
 #
-# A workspace that already has a window on it is left alone, so re-running this
+# A workspace number may repeat — that is how a screen gets split between two
+# apps. They open left to right in the order listed here.
+#
+# A slot that already holds a window is left alone, so re-running this
 # mid-session won't open a second copy of anything.
 
 1   ghostty
@@ -28,8 +31,13 @@
 # config never actually gave you Slack. The flatpak build works, so use it.
 3   flatpak run com.slack.Slack
 
+# Screen 4, split: TickTick left, Obsidian right.
+#
+# TickTick used to be a scratchpad app here, which meant it started hidden and
+# only its tray icon showed. fonn.config also assigns it to this workspace, so
+# it comes back here when relaunched mid-session too.
+4   ticktick
 4   flatpak run md.obsidian.Obsidian
 
 # Scratchpad apps — no screen of their own. Mod+minus summons the last one.
 -   thunderbird
--   ticktick

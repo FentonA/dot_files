@@ -144,7 +144,7 @@ nothing else to touch.
 
 ```
 layouts/default.layout   1 ghostty · 2 zen · 3 discord+slack · 4 ticktick+spotify · 5 obsidian
-layouts/fonn.layout      1 ghostty · 2 zen(CareerPlug) · 3 slack · 4 obsidian
+layouts/fonn.layout      1 ghostty · 2 zen(CareerPlug) · 3 slack · 4 ticktick+obsidian
 ```
 
 A workspace number may repeat, which is how screens 3 and 4 of the default desk
@@ -165,12 +165,13 @@ Two gotchas found the hard way, both already handled:
 * The **snap** Slack (`/snap/bin/slack`, what `slack` on PATH resolves to)
   starts a process but never maps a window. The layout uses
   `flatpak run com.slack.Slack`.
-* TickTick is XWayland, so the old `for_window [app_id="Ticktick"]` scratchpad
-  rule could never match and TickTick squatted on a workspace. Matching on
-  `class` is what works. That rule lives in `fonn.config`, not in `common`: the
-  default desk gives TickTick a screen, and a `move scratchpad` inherited from
-  `common` cannot be undone by the session that includes it. Same reason for
-  Thunderbird's rule, which each session declares for itself.
+* TickTick is XWayland, so the old `for_window [app_id="Ticktick"]` rule could
+  never match. Matching on `class` is what works. Both sessions give TickTick
+  screen 4; `fonn.config` also pins it there with `assign [class="ticktick"]`,
+  so it returns to screen 4 when reopened from the tray rather than landing on
+  whatever is focused. Thunderbird's scratchpad rule is declared per session,
+  not in `common`: a `move scratchpad` inherited from `common` cannot be undone
+  by the session that includes it.
 * sway's PATH at login has no `~/.local/bin` — that comes from the shell
   profile, and nothing in a sway startup is a login shell. `zen` lives only
   there, so it alone failed to start. `sway-layout` prepends it, and now checks
