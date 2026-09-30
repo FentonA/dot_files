@@ -139,8 +139,11 @@ bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle
 bindsym XF86AudioMicMute exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
 
 # Brightness controls
-bindsym $mod+F8 exec /usr/bin/brightnessctl --device='amdgpu_bl1' set 10%-
-bindsym $mod+F9 exec /usr/bin/brightnessctl --device='amdgpu_bl1' set +10%
+# --class=backlight rather than a device name: the kernel numbers the panel
+# amdgpu_bl1 or amdgpu_bl2 depending on the boot, and a binding naming the wrong
+# one fails silently.
+bindsym $mod+F8 exec /usr/bin/brightnessctl --class=backlight set 10%-
+bindsym $mod+F9 exec /usr/bin/brightnessctl --class=backlight set +10%
 bindsym $mod+Shift+F8 exec /usr/bin/brightnessctl --device='system76::kbd_backlight' set 25-
 bindsym $mod+Shift+F9 exec /usr/bin/brightnessctl --device='system76::kbd_backlight' set +25
 
