@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# vpn-dns-fix — make name resolution work through the NordVPN tunnel.
+#
+#   vpn-dns-fix
+#
+# On connect, NordVPN hands systemd-resolved its own DNS servers for the
+# nordlynx link and turns DNSSEC on for it, overriding the global DNSSEC=no.
+# Lookups then fail with "DNSSEC validation failed: missing-key" and nothing
+# resolves (gh, git, MCP servers). This points the link at Cloudflare with
+# DNSSEC off.
+#
+# Called by vpn-connect, and safe to run by hand after a mid-session reconnect.
+# The fix needs sudo. With no terminal to ask for a password on (sway exec at
+# login), it sends a notification telling you to run it instead.
+
+set -uo pipefail
+
+LINK=nordlynx
+PROBE=github.com
+
+resolvectl status "$LINK" >/dev/null 2>&1 || { echo "vpn-dns-fix: no $LINK link, nothing to do"; exit 0; }
+
+if resolvectl query "$PROBE" >/dev/null 2>&1 \
+   && resolvectl status "$LINK" | grep -q 'DNSSEC=no'; then
+  echo "vpn-dns-fix: $LINK DNS already fine"
+  exit 0
+fi
+
+if [ ! -t 0 ]; then
+  echo "vpn-dns-fix: $LINK DNS is broken, run vpn-dns-fix in a terminal" >&2
+  command -v notify-send >/dev/null &&
+    notify-send -u critical "VPN DNS is broken" "Run vpn-dns-fix in a terminal"
+  exit 1
+fi
+
+sudo resolvectl dns "$LINK" 1.1.1.1 1.0.0.1 &&
+  sudo resolvectl dnssec "$LINK" no &&
+  sudo resolvectl flush-caches ||
+  { echo "vpn-dns-fix: resolvectl failed" >&2; exit 1; }
+
+if resolvectl query "$PROBE" >/dev/null 2>&1; then
+  echo "vpn-dns-fix: fixed, $PROBE resolves through $LINK"
+else
+  echo "vpn-dns-fix: applied, but $PROBE still does not resolve" >&2
+  exit 1
+fi
