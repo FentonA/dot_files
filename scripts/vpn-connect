@@ -47,6 +47,7 @@ status() { timeout 20 nordvpn status 2>/dev/null; }
 if status | grep -qi '^ *Status: *Connected' \
    && status | grep -qiE "^ *City: *${CITY//_/ }$"; then
   log "already connected to $CITY — nothing to do"
+  "$(dirname "$(readlink -f "$0")")/vpn-dns-fix" 2>&1 | tee -a "$LOG" >&2
   exit 0
 fi
 
@@ -66,6 +67,7 @@ for attempt in $(seq 1 "$RETRIES"); do
   log "connecting to ${TARGET[*]} (attempt $attempt/$RETRIES)"
   if timeout 90 nordvpn connect "${TARGET[@]}" >>"$LOG" 2>&1; then
     log "connected: $(status | grep -iE '^ *(Status|City|Server|Hostname):' | tr '\n' ' ')"
+    "$(dirname "$(readlink -f "$0")")/vpn-dns-fix" 2>&1 | tee -a "$LOG" >&2
     exit 0
   fi
   log "attempt $attempt failed"
