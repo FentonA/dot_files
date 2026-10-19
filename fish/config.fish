@@ -79,3 +79,5 @@ end
 for local_config in $HOME/.config/fish/*.local.fish
     test -f $local_config; and source $local_config
 end
+
+alias assume="source (brew --prefix)/bin/assume.fish"
