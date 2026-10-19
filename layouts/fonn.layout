@@ -30,6 +30,7 @@
 
 4   flatpak run md.obsidian.Obsidian
 
+5   ticktick
+
 # Scratchpad apps — no screen of their own. Mod+minus summons the last one.
 -   thunderbird
--   ticktick
