@@ -65,10 +65,19 @@ while IFS= read -r notif; do
   summary="$safe_repo · $safe_reason"
   body=$(printf '<b>%s:</b> %s\n%s' "$type" "$safe_title" "$web_url")
 
-  notify-send \
-    --app-name="GitHub" \
-    --icon="$icon" \
-    "$summary" "$body"
+  # The `default` action is what a left-click invokes (see dunst-click.sh).
+  # notify-send blocks until the notification is clicked or closed, so each one
+  # waits in the background; a run with many unread must not queue behind them.
+  (
+    action=$(notify-send \
+      --app-name="GitHub" \
+      --icon="$icon" \
+      --action="default=Open" \
+      "$summary" "$body")
+    if [[ "$action" == "default" && -n "$web_url" ]]; then
+      xdg-open "$web_url"
+    fi
+  ) >/dev/null 2>&1 &
 
   # Mark as seen
   echo "$id" >>"$SEEN_FILE"

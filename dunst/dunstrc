@@ -35,14 +35,19 @@
     # ----- Behavior -----
     show_age_threshold = 60
     stack_duplicates = true
-    dmenu = /usr/bin/rofi -dmenu -p dunst
+    # Not a menu: dunst-click.sh answers with the notification's default
+    # action and focuses the sending app. See the note in that script.
+    dmenu = /home/pibaao/dot_files/scripts/dunst-click.sh
     browser = /usr/bin/xdg-open
 
     # ----- Mouse -----
-    # Left-click invokes the notification's default action (opens source app)
+    # Left-click goes to the source: `context` hands the notification's actions
+    # and URLs to the `dmenu` command above, which invokes the default action,
+    # focuses the app, and then dismisses the notification. No close_current
+    # here — a notification closed before its action is delivered loses it.
     # Middle dismisses the current notification
     # Right dismisses all
-    mouse_left_click = open_url, close_current
+    mouse_left_click = context
     mouse_middle_click = close_current
     mouse_right_click = close_all
 
@@ -113,6 +118,17 @@
     urgency = normal
     timeout = 12
     frame_color = "#6e7681"
+
+# =============================================================================
+# Click-to-source bookkeeping
+# =============================================================================
+
+[record]
+    # Matches everything. Notes which app sent each notification id, which is
+    # how dunst-click.sh knows what window to focus.
+    summary = "*"
+    script = "/home/pibaao/dot_files/scripts/dunst-record.sh"
+
 # =============================================================================
 # Window state rules
 # =============================================================================

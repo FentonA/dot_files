@@ -139,6 +139,9 @@ bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle
 bindsym XF86AudioMicMute exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
 
 # Brightness controls
+# --class=backlight rather than a device name: the kernel numbers the panel
+# amdgpu_bl1 or amdgpu_bl2 depending on the boot, and a binding naming the wrong
+# one fails silently.
 #
 # Selected by CLASS, not by device name. These used to name 'amdgpu_bl1', which
 # does not exist on this machine - the panel backlight registers as 'amdgpu_bl2'
