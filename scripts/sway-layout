@@ -118,17 +118,24 @@ for line in "${LINES[@]}"; do
   # the script then waits out the full timeout for a window that is never
   # coming. That is exactly how a missing zen cost 30 seconds and looked like a
   # hang rather than a "not installed".
-  exe="${cmd%%[[:space:]]*}"
-  if ! command -v "$exe" >/dev/null 2>&1; then
-    log "workspace $ws: '$exe' not found on PATH — skipping (PATH=$PATH)"
-    continue
-  fi
-
   # Idempotent per slot rather than per workspace: the Nth app on a screen is
   # skipped once that screen already holds N windows. Re-running mid-session
   # still opens nothing twice, but a screen shared by two apps no longer stops
   # after the first of them.
+  #
+  # It counts windows, so it cannot tell WHICH app is missing: if the first app
+  # on a shared screen never starts and you re-run this mid-session, the second
+  # one is launched again. Harmless for everything here — a second `flatpak run`
+  # raises the running instance — but it does steal focus. A skipped app still
+  # consumes its slot so the ones after it keep their position.
   slot=${placed[$ws]:-0}
+  exe="${cmd%%[[:space:]]*}"
+  if ! command -v "$exe" >/dev/null 2>&1; then
+    log "workspace $ws: '$exe' not found on PATH — skipping (PATH=$PATH)"
+    placed[$ws]=$((slot + 1))
+    continue
+  fi
+
   before=$(ws_count "$ws")
   if [ "$before" -gt "$slot" ]; then
     log "workspace $ws already has $before window(s) — leaving slot $((slot + 1)) alone"

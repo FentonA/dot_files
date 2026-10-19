@@ -11,6 +11,21 @@
 #
 # hidutil mappings do NOT survive a reboot, so the mapping is installed as a
 # LaunchAgent (RunAtLoad) and also applied immediately to the running session.
+#
+# ── hidutil is the FALLBACK, not the plan ─────────────────────────────────────
+#
+# config/karabiner/linux-parity.json does the same swap and, unlike hidutil,
+# also does the half that actually matters day to day: Control+C acting as
+# Command+C outside terminals, so Caps+C copies the way it does under sway.
+# hidutil cannot express that — it only remaps key to key, with no notion of a
+# chord or of which app is in front.
+#
+# The two MUST NOT both be live. hidutil remaps at the HID layer, so Karabiner
+# sees keys that are already swapped: its CapsLock rule never fires (no CapsLock
+# arrives any more) while its Control rule fires on hidutil's output and turns
+# it back into CapsLock. Swapping twice is not swapping. So this script installs
+# the hidutil agent only while Karabiner is NOT carrying the swap, and tears it
+# down once Karabiner is.
 
 set -e
 
@@ -19,10 +34,40 @@ set -e
   exit 0
 }
 
-echo "===> Configuring keyboard (CapsLock <-> Ctrl)..."
-
 LABEL="com.fentona.keyswap"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+
+# The rule's description, as it is written into karabiner.json when you enable
+# it. Its presence there is the only honest test of "Karabiner has the swap" —
+# the app being installed proves nothing, since enabling a complex modification
+# is a manual step in the GUI and this script cannot do it for you.
+KARABINER_JSON="$HOME/.config/karabiner/karabiner.json"
+RULE_MARK="CapsLock <-> Control, both ways"
+
+teardown_hidutil() {
+  launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+  rm -f "$PLIST"
+  /usr/bin/hidutil property --set '{"UserKeyMapping":[]}' >/dev/null 2>&1 || true
+}
+
+if [ -f "$KARABINER_JSON" ] && grep -q "$RULE_MARK" "$KARABINER_JSON" 2>/dev/null; then
+  echo "===> Karabiner is carrying CapsLock <-> Ctrl — removing the hidutil swap"
+  teardown_hidutil
+  echo "     Both at once cancel out; Karabiner wins because it also maps"
+  echo "     Ctrl+C/V to Cmd+C/V outside terminals, which hidutil cannot."
+  exit 0
+fi
+
+if [ -d /Applications/Karabiner-Elements.app ]; then
+  echo "===> Karabiner-Elements is installed but the parity rule is not enabled."
+  echo "     Enable it once, then re-run this script to drop the hidutil swap:"
+  echo "       Karabiner-Elements > Settings > Complex Modifications > Add rule"
+  echo "       -> \"Linux parity — CapsLock as Control, Control as Command\""
+  echo "     Falling back to hidutil for now, so CapsLock still works as Ctrl."
+  echo ""
+fi
+
+echo "===> Configuring keyboard (CapsLock <-> Ctrl, via hidutil)..."
 
 # HID usage IDs, keyboard usage page (0x07):
 #   0x39 CapsLock   0xE0 LeftControl
@@ -71,5 +116,5 @@ echo "     Undo:   launchctl bootout gui/\$(id -u)/$LABEL && rm $PLIST"
 echo "             (plus a reboot, or hidutil --set '{\"UserKeyMapping\":[]}')"
 echo ""
 echo "     Note: a Bluetooth keyboard that reconnects mid-session may need this"
-echo "     rerun. If that gets annoying, Karabiner-Elements handles reconnects"
-echo "     properly: brew install --cask karabiner-elements"
+echo "     rerun — Karabiner handles reconnects properly, and gives you the"
+echo "     Ctrl+C/V -> Cmd+C/V half as well. See the header of this script."

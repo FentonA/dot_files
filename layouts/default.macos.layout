@@ -1,0 +1,40 @@
+# Default session (macOS) — startup layout
+#
+# The macOS sibling of default.layout: same five screens, same order, macOS
+# commands. Applied by scripts/mac-layout, which aerospace.toml runs at login.
+#
+# One line per app:   <workspace>   <command>
+# Blank lines and #-comments are ignored. Everything after the first token is
+# the command, run through a shell, so `||`, quotes and $HOME all work.
+#
+# A workspace may repeat — that is how a screen gets split between two apps.
+# They open left to right in the order listed here, side by side, because
+# aerospace.toml sets default-root-container-orientation = 'horizontal'.
+#
+# The workspace token can be a name as well as a number: AeroSpace workspaces
+# are named strings. `S` is the scratchpad stand-in (Alt+Minus visits it).
+#
+# Why `open -a` and not the binary: it goes through LaunchServices, so it finds
+# the .app wherever it was installed and reuses a running instance instead of
+# starting a second copy. It also fails loudly on an app that isn't there, which
+# is what lets mac-layout tell "missing" apart from "slow".
+
+1   open -a Ghostty
+
+# The Zen cask has shipped as both "Zen Browser.app" and "Zen.app". Try the
+# current name and fall back, rather than pinning a name that has already moved
+# once. No Space is forced here the way fonn.layout forces CareerPlug.
+2   open -a Zen || open -a "Zen Browser"
+
+# Screen 3, split: Discord left, Slack right.
+3   open -a Discord
+3   open -a Slack
+
+# Screen 4, split: TickTick left, Spotify right.
+4   open -a TickTick
+4   open -a Spotify
+
+5   open -a Obsidian
+
+# Scratchpad stand-in — no screen of its own. Alt+Minus goes and looks at it.
+S   open -a Thunderbird
