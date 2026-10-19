@@ -38,7 +38,7 @@ windows:
         - nvim .
         # Scope the watcher once you know the crate layout:
         #   cargo watch -x 'test -p <crate>' -w <crate>/src
-        - cargo watch -x check -x test
+        - cargo watch -c -w crates -x "check --all-targets" -x "test -p omaha-server --lib"
         # Benchmarking pane: criterion baselines, flamegraph
         - cargo bench   #/   cargo flamegraph --bin <bin>
 
