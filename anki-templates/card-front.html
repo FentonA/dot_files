@@ -327,7 +327,13 @@
     window.__ankiEditor = ed;
     ed.onDidChangeModelContent(save);
     ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, reveal);
-    loadVim(ed);
+    // Monaco lazy-loads each language (tokens + indent-after-colon rules) as an
+    // AMD script calling the global define(). loadVim hides define while it
+    // loads, so a language arriving in that window throws and stays broken for
+    // the session. Pull both in first; the editor's own load then hits cache.
+    require(['vs/basic-languages/python/python', 'vs/basic-languages/rust/rust'],
+      function () { loadVim(ed); },
+      function () { loadVim(ed); });
 
     setTimeout(function () { ed.layout(); ed.focus(); }, 50);
   }
