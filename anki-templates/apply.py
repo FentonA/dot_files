@@ -2,9 +2,10 @@
 """Push card-front.html / card-back.html / card-style.css into Anki over the
 AnkiConnect API, so Anki stays open and the change lands immediately.
 
-    python3 apply.py            # push once
-    python3 apply.py --watch    # push on every save
-    python3 apply.py --check    # report what Anki currently has
+    python3 apply.py              # push once
+    python3 apply.py -w/--watch   # push on every save
+    python3 apply.py -c/--check   # report what Anki currently has
+    python3 apply.py -q/--quiet   # only print the final verdict (combines with the above)
 
 Anki must be RUNNING (the opposite of the old sqlite applier — AnkiConnect is
 an add-on inside Anki). Flip to the next card to see the change.
@@ -116,25 +117,31 @@ def stamps():
 
 def main():
     args = sys.argv[1:]
+    check = "-c" in args or "--check" in args
+    watch = "-w" in args or "--watch" in args
+    quiet = "-q" in args or "--quiet" in args
 
-    if "--check" in args:
-        for model, template in MODELS.items():
-            got = invoke("modelTemplates", modelName=model).get(template, {})
-            css = invoke("modelStyling", modelName=model)["css"]
-            print(f"{model} / {template}: front={len(got.get('Front',''))} "
-                  f"back={len(got.get('Back',''))} css={len(css)} bytes")
-        print("\nmatches disk" if verify(read_sources()) else "\ndiffers from disk")
+    if check:
+        if not quiet:
+            for model, template in MODELS.items():
+                got = invoke("modelTemplates", modelName=model).get(template, {})
+                css = invoke("modelStyling", modelName=model)["css"]
+                print(f"{model} / {template}: front={len(got.get('Front',''))} "
+                      f"back={len(got.get('Back',''))} css={len(css)} bytes")
+            print()
+        print("matches disk" if verify(read_sources()) else "differs from disk")
         return
 
     check_media()
     src = read_sources()
-    push(src)
+    push(src, quiet=quiet)
     print("verified" if verify(src) else "verification FAILED")
 
-    if "--watch" not in args:
+    if not watch:
         return
 
-    print("\nwatching for changes — ctrl-c to stop")
+    if not quiet:
+        print("\nwatching for changes — ctrl-c to stop")
     last = stamps()
     while True:
         time.sleep(1)
