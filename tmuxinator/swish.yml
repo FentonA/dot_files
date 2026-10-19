@@ -38,9 +38,9 @@ windows:
         - nvim .
         # Scope the watcher once you know the crate layout:
         #   cargo watch -x 'test -p <crate>' -w <crate>/src
-        - # cargo watch -x test
+        - cargo watch -x check -x test
         # Benchmarking pane: criterion baselines, flamegraph
-        - # cargo bench   /   cargo flamegraph --bin <bin>
+        - cargo bench   #/   cargo flamegraph --bin <bin>
 
 
   # ── ds_props: the main repo ───────────────────────────────────────────────
