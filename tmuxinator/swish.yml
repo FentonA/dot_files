@@ -10,23 +10,44 @@
 #   - Added k8s window: kubectl/helm/argocd against EKS, namespace `deng`.
 #   - Added db window: dadbod-ui + mycli/pgcli.
 #   - Test loops are `uv run pytest`, not bare pytest.
+#   - Added market-dist window (ds_market_dist is actively developed, same
+#     tier as props/watcher). Replaced misc with libs (ds_functions,
+#     ds_lu_stat_type, bet-request) and put swish-k8s-secrets in the k8s
+#     window. slog and ds_watcher's Athena tooling aren't part of the daily
+#     loop, so no window for slog. ds_constants and k8s_ssh aren't cloned
+#     locally yet -- see the note on the libs window.
 #
 # PREREQUISITE FOR ALMOST EVERYTHING: VPN connected.
 #   Nexus package installs, all databases, Redis, Kafka, and the K8s API
 #   are all VPN-gated. If something inexplicably hangs, check VPN first.
 
 name: swish
-root: ~/swish
+root: ~/
 tmux_options: -f ~/.config/tmux/.tmux.conf
 pre_window: tmux set-window-option -g main-pane-width 70%
 startup_window: props
 
 windows:
+  # ── omaha: the rust services ──────────────────────────────────────────────
+  # MBF API + alternates writer. Single nvim so rust-analyzer sees the whole
+  # workspace; per-crate nvim breaks cross-crate goto-definition.
+  - omaha:
+      root: ~/omaha
+      layout: main-vertical
+      panes:
+        - nvim .
+        # Scope the watcher once you know the crate layout:
+        #   cargo watch -x 'test -p <crate>' -w <crate>/src
+        - cargo watch -c -w crates -x "check --all-targets" -x "test -p omaha-server --lib"
+        # Benchmarking pane: criterion baselines, flamegraph
+        - cargo bench   #/   cargo flamegraph --bin <bin>
+
+
   # ── ds_props: the main repo ───────────────────────────────────────────────
   # Four pipelines live here: main props, fast props, leaders/h2h, alternates.
   # This is where most work happens.
   - props:
-      root: ~/swish/ds_props
+      root: ~/ds_props
       layout: main-vertical
       panes:
         - nvim .
@@ -37,48 +58,51 @@ windows:
 
   # ── ds_watcher: suspension monitoring ─────────────────────────────────────
   - watcher:
-      root: ~/swish/ds_watcher
+      root: ~/ds_watcher
       layout: main-vertical
       panes:
         - nvim .
         - # uv run pytest test/unit -q
         - # uv run cli run-pregame-watcher
 
-  # ── omaha: the rust services ──────────────────────────────────────────────
-  # MBF API + alternates writer. Single nvim so rust-analyzer sees the whole
-  # workspace; per-crate nvim breaks cross-crate goto-definition.
-  - omaha:
-      root: ~/swish/omaha
+  # ── ds_market_dist: market blending ───────────────────────────────────────
+  - market-dist:
+      root: ~/ds_market_dist
       layout: main-vertical
       panes:
         - nvim .
-        # Scope the watcher once you know the crate layout:
-        #   cargo watch -x 'test -p <crate>' -w <crate>/src
-        - # cargo watch -x test
-        # Benchmarking pane: criterion baselines, flamegraph
-        - # cargo bench   /   cargo flamegraph --bin <bin>
+        - # uv run pytest test/unit -q
+        - # uv run cli --help
 
-  # ── bet-request + shared modules ──────────────────────────────────────────
-  # Lower-traffic repos grouped into one window. Split out if one gets busy.
-  - misc:
-      root: ~/swish
+  # ── libs: shared/read-mostly modules ──────────────────────────────────────
+  # ds_functions (shared funcs for props + bet-request), ds_lu_stat_type
+  # (stat_type_id / position lookups), cross-sports-bet-request-py. All
+  # read-mostly relative to props/watcher/market-dist, so one window is fine.
+  #
+  # NOTE: ds_constants and k8s_ssh aren't cloned to ~ yet -- once they are,
+  # add a `nvim ds_constants` / `nvim k8s_ssh` pane here (or their own window
+  # for k8s_ssh, next to the k8s window below).
+  - libs:
+      root: ~/
       layout: main-vertical
       panes:
+        - nvim ds_functions
+        - nvim ds_lu_stat_type
         - nvim cross-sports-bet-request-py
-        - # cd cross-sports-bet-request-py && uv run pytest -q
-        - # ds_functions / ds_constants / ds_lu_stat_type — read-mostly
 
   # ── k8s: cluster ops ──────────────────────────────────────────────────────
   # Namespace is `deng`. Clusters: ausw2.ds-main.* (props/sim/watcher/bet-request),
   # ausw2.ds-fgen.* (feature-gen), ausw2.deng.* (sport DE repos).
   # Refresh kubeconfigs with: k8s-access kubeconfig   (needs VPN + Docker)
   - k8s:
-      root: ~/swish
+      root: ~/
       layout: main-horizontal
       panes:
-        # Live pod watch. -w streams changes; drop it for a one-shot list.
-        - # kubectl get pods -n deng -w
+        # swish-k8s-secrets: 1Password-backed secret manifests. YAML LSP
+        # (schemastore) is set up in nvim for these.
+        - nvim swish-k8s-secrets
         # Ops pane: describe, logs, exec
+        #   kubectl get pods -n deng -w
         #   kubectl describe pod <pod> -n deng
         #   kubectl logs -f <pod> -n deng
         #   kubectl logs <pod> -n deng --previous     (crashed pod)
@@ -94,7 +118,7 @@ windows:
   # ── aws ───────────────────────────────────────────────────────────────────
   # S3 for checkpoints, feature parquet, model artifacts. EKS for kubeconfigs.
   - aws:
-      root: ~/swish
+      root: ~/
       layout: main-vertical
       panes:
         # Sanity check first thing: aws sts get-caller-identity
@@ -107,7 +131,7 @@ windows:
   # dadbod-ui in nvim as primary; mycli/pgcli as the REPL fallback.
   # DBeaver stays installed for connection-profile sprawl across sport hosts.
   - db:
-      root: ~/swish
+      root: ~/
       layout: main-vertical
       panes:
         # :DBUI  — connections defined in your dadbod config
@@ -120,7 +144,7 @@ windows:
   # Deploys run through GitHub Actions → ArgoCD.
   # ArgoCD UI: https://swish-argocd.swish-dso.pro.swishaws.engineering/applications
   - ci:
-      root: ~/swish/ds_props
+      root: ~/ds_props
       layout: main-vertical
       panes:
         - nvim .github/workflows/
@@ -131,6 +155,6 @@ windows:
   # The confusion list. Names, acronyms, "what is outboxing", the stuff that's
   # obvious by month two and unrecoverable in week one.
   - notes:
-      root: ~/swish
+      root: ~/
       panes:
-        - nvim ~/swish/NOTES.md
+        - nvim ~/NOTES.md

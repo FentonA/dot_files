@@ -21,6 +21,10 @@ require("lazy").setup({
     { import = "lazyvim.plugins.extras.lang.rust" },
     { import = "lazyvim.plugins.extras.lang.ruby" },
     { import = "lazyvim.plugins.extras.lang.toml" },
+    -- ds_props, ds_watcher, ds_functions, ds_lu_stat_type, ds_market_dist are all uv/pyright projects.
+    { import = "lazyvim.plugins.extras.lang.python" },
+    -- swish-k8s-secrets and friends are mostly yaml manifests -- schema validation via SchemaStore.
+    { import = "lazyvim.plugins.extras.lang.yaml" },
     { import = "plugins" },
   },
   defaults = {

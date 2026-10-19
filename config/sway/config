@@ -1,9 +1,16 @@
 # Sway — default session ("Sway", "Sway 1.11", "Sway (Nvidia)")
 #
 # This is the config every login-screen entry loads except Sway(fonn), and
-# "Sway (Nvidia)" — /usr/local/bin/sway-nvidia, which is plain `sway
-# --unsupported-gpu` with no -c — is the one that actually gets used, so treat
-# this as the Nvidia desk.
+# "Sway (Nvidia)" — /usr/local/bin/sway-nvidia, which takes no -c — is the one
+# that actually gets used, so treat this as the Nvidia desk.
+#
+# sway-nvidia used to be the apt sway 1.9 / wlroots 0.17 stack. That is what was
+# causing the flickering: wlroots 0.17 has no explicit sync
+# (linux-drm-syncobj-v1), and the Dell hangs off card1-HDMI-A-1, i.e. the NVIDIA
+# GPU, so the driver and the compositor disagreed about when a buffer was safe
+# to scan out. It now delegates to /opt/sway-next/bin/sway-next-session — Sway
+# 1.11 / wlroots 0.19, which has explicit sync and runs the Vulkan renderer.
+# The plain "Sway" entry is still apt 1.9 and is the rollback.
 #
 # Everything shared with the other sway sessions lives in `common` — bindings,
 # modes, colors, window rules, daemons. Edit that and every session picks it up.
