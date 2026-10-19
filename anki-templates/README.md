@@ -75,6 +75,10 @@ python3 ~/anki-templates/apply.py --watch   # re-push on every save
 python3 ~/anki-templates/apply.py --check   # compare live vs disk, change nothing
 ```
 
+Short forms: `-w`, `-c`. Add `-q` / `--quiet` to any of them to drop the
+per-notetype lines and print just the verdict (`verified`, `matches disk`, …).
+Mismatches and errors still print.
+
 Flip to the next card to see the change — Anki caches the rendered card.
 
 `original/` is the pre-customization backup of both notetypes, kept for reference.
