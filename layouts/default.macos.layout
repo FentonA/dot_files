@@ -1,6 +1,6 @@
 # Default session (macOS) — startup layout
 #
-# The macOS sibling of default.layout: same five screens, same order, macOS
+# The macOS sibling of default.layout: same six screens, same order, macOS
 # commands. Applied by scripts/mac-layout, which aerospace.toml runs at login.
 #
 # One line per app:   <workspace>   <command>
@@ -39,6 +39,8 @@
 
 5   open -a DBeaver
 
+6   open -a Obsidian
+
 # Windows that were already open (restored at login, say) are moved by bundle id.
 # Keep in step with the [[on-window-detected]] rules in aerospace.toml, which
 # place windows that appear later. `open -a` cannot move a window that exists.
@@ -46,3 +48,4 @@ pin 2 app.zen-browser.zen
 pin 3 com.tinyspeck.slackmacgap
 pin 4 com.electron.dockerdesktop
 pin 5 org.jkiss.dbeaver.core.product
+pin 6 md.obsidian

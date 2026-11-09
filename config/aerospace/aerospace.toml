@@ -21,7 +21,7 @@
 
 start-at-login = true
 
-# Screens — 1 terminal · 2 zen · 3 discord+slack · 4 ticktick+spotify · 5 obsidian
+# Screens — 1 terminal · 2 zen · 3 slack · 4 docker · 5 dbeaver · 6 obsidian
 #
 # WHICH app goes on which screen is not written here — it lives in
 #   ~/.config/sway-layouts/default.macos.layout
@@ -59,6 +59,10 @@ run = 'move-node-to-workspace 4'
 [[on-window-detected]]
 if.app-id = 'org.jkiss.dbeaver.core.product'
 run = 'move-node-to-workspace 5'
+
+[[on-window-detected]]
+if.app-id = 'md.obsidian'
+run = 'move-node-to-workspace 6'
 
 # Alt+Tab and Mission Control still work; AeroSpace only claims the keys below.
 [key-mapping]

@@ -234,7 +234,7 @@ installed by `bootstrap.sh`:
 ```
 config/karabiner/linux-parity.json   CapsLock <-> Ctrl, and Ctrl+C/V as Cmd+C/V
 config/aerospace/aerospace.toml      workspaces, tiling, and the Caps+S mode
-layouts/default.macos.layout         the same five screens, macOS commands
+layouts/default.macos.layout         the same six screens, macOS commands
 scripts/mac-layout                   opens them at login
 ```
 
