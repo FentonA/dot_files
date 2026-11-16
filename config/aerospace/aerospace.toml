@@ -21,7 +21,7 @@
 
 start-at-login = true
 
-# Screens — 1 terminal · 2 zen · 3 discord+slack · 4 ticktick+spotify · 5 obsidian
+# Screens — 1 terminal · 2 zen · 3 slack · 4 docker · 5 dbeaver · 6 obsidian
 #
 # WHICH app goes on which screen is not written here — it lives in
 #   ~/.config/sway-layouts/default.macos.layout
@@ -39,6 +39,30 @@ default-root-container-orientation = 'horizontal'
 # then joins. sway does this on its own.
 enable-normalization-flatten-containers = true
 enable-normalization-opposite-orientation-for-nested-containers = true
+
+# Where an app's window goes is decided when the window appears, not by whoever
+# happens to be focused. This is what makes the layout survive apps that macOS or
+# a login item started before mac-layout ran. Ghostty has no rule on purpose:
+# Alt+Enter should open a terminal on the workspace you are on.
+[[on-window-detected]]
+if.app-id = 'app.zen-browser.zen'
+run = 'move-node-to-workspace 2'
+
+[[on-window-detected]]
+if.app-id = 'com.tinyspeck.slackmacgap'
+run = 'move-node-to-workspace 3'
+
+[[on-window-detected]]
+if.app-id = 'com.electron.dockerdesktop'
+run = 'move-node-to-workspace 4'
+
+[[on-window-detected]]
+if.app-id = 'org.jkiss.dbeaver.core.product'
+run = 'move-node-to-workspace 5'
+
+[[on-window-detected]]
+if.app-id = 'md.obsidian'
+run = 'move-node-to-workspace 6'
 
 # Alt+Tab and Mission Control still work; AeroSpace only claims the keys below.
 [key-mapping]

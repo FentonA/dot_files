@@ -52,7 +52,7 @@ done
 export PATH
 
 LAYOUT_DIR="${SWAY_LAYOUT_DIR:-$HOME/.config/sway-layouts}"
-TIMEOUT="${MAC_LAYOUT_TIMEOUT:-45}"      # per app, seconds — Mac apps start slower
+TIMEOUT="${MAC_LAYOUT_TIMEOUT:-15}"      # per app, seconds
 LOG="${TMPDIR:-/tmp}/mac-layout.log"
 
 log() { printf '%s %s\n' "$(date +%H:%M:%S)" "$*" | tee -a "$LOG" >&2; }
@@ -89,9 +89,23 @@ placed_get() {
 }
 placed_set() { PLACED="$PLACED $1:$2"; }
 
+# `pin <ws> <bundle-id>` moves windows that already exist; it runs first so the
+# launch loop below sees the real state of each workspace.
+for line in "${LINES[@]}"; do
+  set -- $line
+  [ "$1" = "pin" ] && [ $# -eq 3 ] || continue
+  if ((DRY)); then log "would pin $3 to workspace $2"; continue; fi
+  aerospace list-windows --all --format '%{window-id} %{app-bundle-id}' 2>/dev/null |
+    awk -v b="$3" '$2 == b { print $1 }' |
+    while read -r id; do
+      aerospace move-node-to-workspace --window-id "$id" "$2" >/dev/null 2>&1 && log "pinned window $id ($3) to workspace $2"
+    done
+done
+
 first_ws=""
 deferred=()
 for line in "${LINES[@]}"; do
+  [ "${line%%[[:space:]]*}" = "pin" ] && continue
   ws="${line%%[[:space:]]*}"                       # first token
   cmd="${line#"$ws"}"                              # the rest
   cmd="${cmd#"${cmd%%[![:space:]]*}"}"             # ltrim
@@ -101,6 +115,10 @@ for line in "${LINES[@]}"; do
     [ -n "$cmd" ] && deferred+=("$cmd")
     continue
   fi
+
+  # `1!` = always run the command, skipping the already-occupied check below.
+  force=0
+  case $ws in *!) force=1; ws="${ws%!}" ;; esac
 
   if ! [[ $ws =~ ^[A-Za-z0-9]+$ ]]; then
     log "skip: '$line' does not start with a workspace name or -"
@@ -118,7 +136,7 @@ for line in "${LINES[@]}"; do
   # already holds N windows, so re-running opens nothing twice.
   slot=$(placed_get "$ws")
   before=$(ws_count "$ws")
-  if [ "$before" -gt "$slot" ]; then
+  if ((force == 0)) && [ "$before" -gt "$slot" ]; then
     log "workspace $ws already has $before window(s) — leaving slot $((slot + 1)) alone"
     placed_set "$ws" $((slot + 1))
     continue
